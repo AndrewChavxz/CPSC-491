@@ -63,25 +63,49 @@ window.App = window.App || {};
         });
     }
 
+    let isSwitching = false;
+
+    function textToDom(text) {
+        if (typeof Blockly.Xml.textToDom === 'function') {
+            return Blockly.Xml.textToDom(text);
+        }
+        // Fallback for newer Blockly versions or if helper is missing
+        if (Blockly.utils && Blockly.utils.xml && typeof Blockly.utils.xml.textToDom === 'function') {
+            return Blockly.utils.xml.textToDom(text);
+        }
+        // Manual DOM parser
+        const oParser = new DOMParser();
+        const dom = oParser.parseFromString(text, "text/xml");
+        // check for errors?
+        return dom.documentElement;
+    }
+
     function switchToCharacter(id, saveCurrent = true) {
+        console.log(`[Switch] Request to switch to ${id}. saveCurrent=${saveCurrent}`);
         try {
+            isSwitching = true; // Block auto-save
             const current = getActiveCharacter();
             if (current && saveCurrent) {
-                // Save current workspace
-                // Check if workspace matches current char?
-                const xml = Blockly.Xml.workspaceToDom(workspace);
-                current.workspaceXML = Blockly.Xml.domToText(xml);
+                // Save current workspace BEFORE switching active char
+                const xmlDom = Blockly.Xml.workspaceToDom(workspace);
+                const xmlText = Blockly.Xml.domToText(xmlDom);
+                current.workspaceXML = xmlText;
+                console.log(`[Switch] Saved ${current.id} workspace. XML len: ${xmlText.length}`);
                 App.Engine.saveToStorage();
+            } else {
+                console.log("[Switch] No current character or saveCurrent=false. Skipping save.");
             }
 
             setActiveCharacter(id);
             const next = getActiveCharacter();
+            console.log(`[Switch] Active set to ${id}. Loading workspace...`);
 
             // Load next workspace
-            workspace.clear();
-            if (next.workspaceXML) {
+            workspace.clear(); // This triggers 'delete' events, which we now ignore
+            if (next && next.workspaceXML) {
+                console.log(`[Switch] Loading XML for ${next.id}. Len: ${next.workspaceXML.length}`);
                 try {
-                    const xml = Blockly.Xml.textToDom(next.workspaceXML);
+                    const xml = textToDom(next.workspaceXML);
                     Blockly.Xml.domToWorkspace(xml, workspace);
                 } catch (e) {
                     console.error("Failed to load workspace for " + id, e);
@@ -90,6 +114,7 @@ window.App = window.App || {};
                     if (defaultXml) Blockly.Xml.domToWorkspace(defaultXml, workspace);
                 }
             } else {
+                console.log(`[Switch] No XML for ${next ? next.id : 'null'}, loading default.`);
                 // Load default start block if empty
                 const defaultXml = document.getElementById("startBlocks");
                 if (defaultXml) {
@@ -107,6 +132,10 @@ window.App = window.App || {};
         } catch (err) {
             console.error("Error switching character:", err);
             setStatus("Error switching character");
+        } finally {
+            isSwitching = false; // logic done, re-enable auto-save
+            console.log("[Switch] Switch complete. Auto-save re-enabled.");
+            // Force one save of the new state?
         }
     }
 
@@ -132,13 +161,17 @@ window.App = window.App || {};
 
     // Auto-save on block changes
     function onBlocklyChange(event) {
+        if (isSwitching) return; // Prevent saving during switch (e.g. clearing workspace)
         if (event.type === Blockly.Events.UI) return; // Ignore UI events like scrolling
 
         const current = getActiveCharacter();
         if (current) {
+            // console.log(`[AutoSave] Saving ${current.id}...`); // Optional: might spam
             const xml = Blockly.Xml.workspaceToDom(workspace);
             current.workspaceXML = Blockly.Xml.domToText(xml);
             App.Engine.saveToStorage();
+        } else {
+            console.warn("[AutoSave] No active character!");
         }
     }
     workspace.addChangeListener(onBlocklyChange);
