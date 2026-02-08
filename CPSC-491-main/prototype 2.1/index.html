@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Isometric Grid + Blockly Movement (Fixed)</title>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Blockly core -->
+  <script src="https://unpkg.com/blockly/blockly.min.js"></script>
+  <!-- Blockly JS generator (needed for workspaceToCode) -->
+  <script src="https://unpkg.com/blockly/javascript.min.js"></script>
+</head>
+
+<body>
+  <div id="app">
+    <div id="left">
+      <div class="panel" id="controls">
+        <div>
+          <button id="runBtn" type="button">Run</button>
+          <button id="stopBtn" type="button">Stop</button>
+          <button id="resetBtn" type="button">Reset</button>
+        </div>
+        <div id="status" class="hint">Use blocks to move the character.</div>
+      </div>
+
+      <div class="panel" id="blocklyPanel">
+        <div id="blocklyDiv"></div>
+      </div>
+
+      <div class="panel" id="codeBox"></div>
+    </div>
+
+    <div id="right">
+      <canvas id="c"></canvas>
+      <div class="panel" style="padding:10px 12px;">
+        <div class="hint">
+          Manual move (when not running script): <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>
+          <br />Click <strong>Run</strong> to execute your Blockly program.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toolbox -->
+  <xml id="toolbox" style="display:none">
+    <category name="Program" colour="#6f5eff">
+      <block type="on_start"></block>
+    </category>
+    <category name="Movement" colour="#32a852">
+      <block type="move_dir">
+        <field name="DIR">UP</field>
+      </block>
+      <block type="move_dir">
+        <field name="DIR">DOWN</field>
+      </block>
+      <block type="move_dir">
+        <field name="DIR">LEFT</field>
+      </block>
+      <block type="move_dir">
+        <field name="DIR">RIGHT</field>
+      </block>
+    </category>
+    <category name="Loops" colour="#e0a800">
+      <block type="controls_repeat_ext">
+        <value name="TIMES">
+          <shadow type="math_number">
+            <field name="NUM">4</field>
+          </shadow>
+        </value>
+      </block>
+    </category>
+    <category name="Math" colour="#4a90e2">
+      <block type="math_number"></block>
+    </category>
+  </xml>
+
+  <!-- Default workspace -->
+  <xml id="startBlocks" style="display:none">
+    <block type="on_start" x="20" y="20">
+      <statement name="DO">
+        <block type="controls_repeat_ext">
+          <value name="TIMES">
+            <shadow type="math_number">
+              <field name="NUM">3</field>
+            </shadow>
+          </value>
+          <statement name="DO">
+            <block type="move_dir">
+              <field name="DIR">RIGHT</field>
+              <next>
+                <block type="move_dir">
+                  <field name="DIR">DOWN</field>
+                </block>
+              </next>
+            </block>
+          </statement>
+        </block>
+      </statement>
+    </block>
+  </xml>
+
+  <!-- App scripts -->
+  <script src="js/helpers.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/blockly-setup.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/char-manager.js"></script>
+  <script src="js/main.js"></script>
+</body>
+
+</html>
