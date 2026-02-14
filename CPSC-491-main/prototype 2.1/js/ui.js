@@ -6,5 +6,9 @@ window.App = window.App || {};
   App.UI = {
     codeBox,
     setStatus: App.BlocklyStuff.setStatus,
+    updateCounters: (trees, rocks) => {
+      document.getElementById("treeCount").textContent = trees;
+      document.getElementById("rockCount").textContent = rocks;
+    }
   };
 })();

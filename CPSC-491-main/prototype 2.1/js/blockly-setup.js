@@ -63,6 +63,20 @@ window.App = window.App || {};
     return (map[dir] || "") + ";\n";
   };
 
+  Blockly.Blocks["harvest_dir"] = {
+    init: function () {
+      this.appendDummyInput()
+        .appendField("harvest");
+      this.setPreviousStatement(true);
+      this.setNextStatement(true);
+      this.setColour(160);
+    },
+  };
+
+  generator.forBlock["harvest_dir"] = function (block) {
+    return `GameAPI.harvest();\n`;
+  };
+
   // 3. Inject Workspace
   const workspace = Blockly.inject("blocklyDiv", {
     toolbox: document.getElementById("toolbox"),

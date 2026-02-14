@@ -12,6 +12,12 @@ window.App = window.App || {};
   const characters = [];
   let activeCharId = null;
 
+  // Game State
+  const gameState = {
+    treeCount: 0,
+    rockCount: 0
+  };
+
   function createCharacter(id, x, y, color) {
     const char = {
       id,
@@ -178,6 +184,23 @@ window.App = window.App || {};
     if (worldObjects.has(`${i},${j}`)) return false;
 
     return true;
+  }
+
+  function harvestObject(x, y) {
+    const i = Math.round(x);
+    const j = Math.round(y);
+    const key = `${i},${j}`;
+
+    if (worldObjects.has(key)) {
+      const type = worldObjects.get(key);
+      worldObjects.delete(key);
+
+      if (type === 'tree') gameState.treeCount++;
+      if (type === 'rock') gameState.rockCount++;
+
+      return type;
+    }
+    return null;
   }
 
   function drawPoly(points, fill, stroke) {
@@ -391,7 +414,9 @@ window.App = window.App || {};
     clampPlayer,
     render,
     saveToStorage, // Exposed
-    isWalkable // Exposed for collision check
+    isWalkable, // Exposed for collision check
+    harvestObject,
+    gameState
   };
 
   window.addEventListener("resize", resizeCanvas);

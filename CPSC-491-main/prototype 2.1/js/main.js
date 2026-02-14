@@ -14,7 +14,12 @@ window.App = window.App || {};
 
   function enqueueMove(dx, dy) {
     const char = App.Engine.getActiveCharacter();
-    if (char) char.moveQueue.push({ dx, dy });
+    if (char) char.moveQueue.push({ type: 'move', dx, dy });
+  }
+
+  function enqueueHarvest() {
+    const char = App.Engine.getActiveCharacter();
+    if (char) char.moveQueue.push({ type: 'harvest' });
   }
 
   const GameAPI = {
@@ -22,6 +27,7 @@ window.App = window.App || {};
     moveDown: () => enqueueMove(0, 1),
     moveLeft: () => enqueueMove(-1, 0),
     moveRight: () => enqueueMove(1, 0),
+    harvest: () => enqueueHarvest(),
     resetQueue: () => {
       const char = App.Engine.getActiveCharacter();
       if (char) {
@@ -37,24 +43,61 @@ window.App = window.App || {};
     if (char.moveQueue.length > 0 || char.currentMove) {
       if (!char.currentMove) {
         // Look ahead
-        const m = char.moveQueue[0];
-        const tx = Math.max(0, Math.min(App.Engine.gridCols - 1, char.x + m.dx));
-        const ty = Math.max(0, Math.min(App.Engine.gridRows - 1, char.y + m.dy));
+        const action = char.moveQueue[0];
 
-        if (!App.Engine.isWalkable(tx, ty)) {
-          // Blocked, consume move and stop? Or clear queue?
-          // For now, consume and log
+        if (action.type === 'harvest') {
+          // Check all 4 adjacent tiles
+          const offsets = [
+            { dx: 0, dy: -1 }, // UP
+            { dx: 0, dy: 1 },  // DOWN
+            { dx: -1, dy: 0 }, // LEFT
+            { dx: 1, dy: 0 }   // RIGHT
+          ];
+
+          let totalHarvested = 0;
+          let harvestTypes = [];
+
+          offsets.forEach(offset => {
+            const targetX = char.x + offset.dx;
+            const targetY = char.y + offset.dy;
+            const harvested = App.Engine.harvestObject(targetX, targetY);
+            if (harvested) {
+              totalHarvested++;
+              if (!harvestTypes.includes(harvested)) harvestTypes.push(harvested);
+            }
+          });
+
+          if (totalHarvested > 0) {
+            App.UI.updateCounters(App.Engine.gameState.treeCount, App.Engine.gameState.rockCount);
+            App.UI.setStatus(`Harvested ${totalHarvested} items (${harvestTypes.join(", ")})!`);
+          } else {
+            App.UI.setStatus("Nothing to harvest nearby.");
+          }
+
+          // Consume action
           char.moveQueue.shift();
           return;
         }
 
-        // Start move
-        char.moveQueue.shift();
-        char.currentMove = {
-          t: 0,
-          startX: char.x, startY: char.y,
-          targetX: tx, targetY: ty
-        };
+        // Movement Logic
+        if (action.type === 'move') {
+          const m = action;
+          const tx = Math.max(0, Math.min(App.Engine.gridCols - 1, char.x + m.dx));
+          const ty = Math.max(0, Math.min(App.Engine.gridRows - 1, char.y + m.dy));
+
+          if (!App.Engine.isWalkable(tx, ty)) {
+            char.moveQueue.shift();
+            return;
+          }
+
+          // Start move
+          char.moveQueue.shift();
+          char.currentMove = {
+            t: 0,
+            startX: char.x, startY: char.y,
+            targetX: tx, targetY: ty
+          };
+        }
       }
 
       // Animating
@@ -184,6 +227,55 @@ window.App = window.App || {};
   document.getElementById("runBtn").addEventListener("click", generateAndRun);
   document.getElementById("stopBtn").addEventListener("click", stopRunning);
   document.getElementById("resetBtn").addEventListener("click", resetPlayer);
+
+  // -------------------- Start Screen --------------------
+  const startScreen = document.getElementById("start-screen");
+  const appDiv = document.getElementById("app");
+
+  if (startScreen) {
+    // Ensure app is hidden initially (already done in HTML style, but good to enforce)
+    appDiv.style.display = "none";
+
+    document.getElementById("start-game-btn").addEventListener("click", () => {
+      startScreen.style.opacity = 0;
+      setTimeout(() => {
+        startScreen.style.display = "none";
+        appDiv.style.display = "grid";
+        App.Engine.resizeCanvas(); // Fix canvas size after showing
+        if (workspace) Blockly.svgResize(workspace); // Fix Blockly layout
+      }, 200);
+    });
+
+    document.getElementById("settings-btn").addEventListener("click", () => {
+      alert("Settings menu coming soon!");
+    });
+
+    // Shop
+    const shopBtn = document.getElementById("shop-btn");
+    const shopScreen = document.getElementById("shop-screen");
+    const closeShopBtn = document.getElementById("close-shop-btn");
+
+    if (shopBtn && shopScreen && closeShopBtn) {
+      shopBtn.addEventListener("click", () => {
+        shopScreen.style.display = "flex"; // Show flex to center content
+        shopScreen.classList.remove("hidden");
+      });
+
+      closeShopBtn.addEventListener("click", () => {
+        shopScreen.classList.add("hidden");
+        // Also force display none if class logic isn't enough (due to flex override)
+        // But .hidden has !important so it should be fine. 
+        // However, we used style.display = "flex" above which sets inline style.
+        // Inline style overrides class without !important, but our .hidden has !important.
+        // Just to be clean:
+        shopScreen.style.display = "";
+      });
+    }
+  }
+
+  window.addEventListener("resize", () => {
+    if (workspace) Blockly.svgResize(workspace);
+  });
 
   requestAnimationFrame(loop);
 })();
