@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Isometric Grid + Blockly Movement (Fixed)</title>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Blockly core -->
+  <script src="https://unpkg.com/blockly/blockly.min.js"></script>
+  <!-- Blockly JS generator (needed for workspaceToCode) -->
+  <script src="https://unpkg.com/blockly/javascript.min.js"></script>
+</head>
+
+<body>
+  <div id="start-screen">
+    <h1>Code Colony</h1>
+    <div class="menu">
+      <button id="start-game-btn">Start</button>
+      <button id="settings-btn">Settings</button>
+    </div>
+  </div>
+
+  <div id="shop-screen" class="hidden">
+    <h1>Shop</h1>
+    <div class="panel" style="padding: 20px; text-align: center;">
+      <p>Welcome to the Shop!</p>
+      <p style="font-size: 0.9em; color: #aaa;">What would you like to do?</p>
+      <br>
+      <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 20px;">
+        <button id="shop-gold-btn">Gold</button>
+        <button id="shop-buildings-btn">Buildings</button>
+      </div>
+      <button id="close-shop-btn">Back</button>
+    </div>
+  </div>
+
+  <div id="gold-exchange-screen" class="hidden screen-overlay">
+    <h1>Gold Exchange</h1>
+    <div class="panel" style="padding: 20px; text-align: center;">
+      <p>Exchange resources for Gold!</p>
+      <div style="display: flex; gap: 20px; justify-content: center; margin: 20px 0;">
+        <div class="exchange-item">
+          <p>5 Trees = 2 Gold</p>
+          <button id="exchange-trees-btn">Trade Trees</button>
+        </div>
+        <div class="exchange-item">
+          <p>5 Rocks = 3 Gold</p>
+          <button id="exchange-rocks-btn">Trade Rocks</button>
+        </div>
+      </div>
+      <button id="close-gold-btn">Back</button>
+    </div>
+  </div>
+
+  <div id="buildings-screen" class="hidden screen-overlay">
+    <h1>Buildings</h1>
+    <div class="panel" style="padding: 20px; text-align: center;">
+      <p>Purchase buildings to expand!</p>
+      <div style="display: flex; gap: 20px; justify-content: center; margin: 20px 0;">
+        <div class="building-item">
+          <p>Tent</p>
+          <p class="price">10 Gold</p>
+          <button id="buy-tent-btn">Buy</button>
+        </div>
+      </div>
+      <button id="close-buildings-btn">Back</button>
+    </div>
+  </div>
+
+  <div id="quests-list-screen" class="hidden screen-overlay">
+    <h1>Quests</h1>
+    <div class="panel"
+      style="padding: 20px; text-align: center; width: 80%; max-width: 600px; max-height: 70vh; overflow-y: auto;">
+      <p>Complete quests to earn rewards!</p>
+      <div id="quests-container"
+        style="display: flex; flex-direction: column; gap: 10px; margin: 20px 0; text-align: left;">
+        <!-- Quests will be injected here dynamically -->
+      </div>
+      <button id="close-quests-btn">Back</button>
+    </div>
+  </div>
+
+  <div id="quest-details-screen" class="hidden screen-overlay">
+    <h1 id="qd-title">Quest Title</h1>
+    <div class="panel"
+      style="padding: 20px; text-align: left; width: 80%; max-width: 600px; max-height: 70vh; overflow-y: auto;">
+      <h3 style="color: #32a852; margin-top: 0;">🎯 Objective</h3>
+      <p id="qd-objective">...</p>
+
+      <h3 style="color: #e0a800;">⚙ Rules</h3>
+      <ul id="qd-rules" style="padding-left: 20px;">
+        <!-- Rules injected here -->
+      </ul>
+
+      <h3 style="color: #fbff00;">💰 Reward</h3>
+      <p id="qd-reward" class="price">...</p>
+
+      <h3 style="color: #4a90e2;">📘 Teaches</h3>
+      <ul id="qd-teaches" style="padding-left: 20px;">
+        <!-- Teaches injected here -->
+      </ul>
+
+      <div style="text-align: center; margin-top: 20px;">
+        <button id="close-quest-details-btn">Back to Quests</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="app" style="display: none;">
+    <div id="left">
+      <div class="panel" id="controls">
+        <div>
+          <button id="runBtn" type="button">Run</button>
+          <button id="stopBtn" type="button">Stop</button>
+          <button id="resetBtn" type="button">Reset</button>
+        </div>
+        <div id="status" class="hint">Use blocks to move the character.</div>
+      </div>
+
+      <div class="panel" id="blocklyPanel">
+        <div id="blocklyDiv"></div>
+      </div>
+
+      <div class="panel" id="codeBox"></div>
+    </div>
+
+    <div id="right">
+      <canvas id="c"></canvas>
+      <div id="counters" class="panel"
+        style="position: absolute; top: 10px; right: 10px; pointer-events: none; opacity: 0.9;">
+        <span>Trees: <b id="treeCount">0</b></span>
+        <span style="margin-left:15px">Rocks: <b id="rockCount">0</b></span>
+        <span style="margin-left:15px; color:#fbff00;">Gold: <b id="goldCount">0</b></span>
+      </div>
+      <div class="panel" style="padding:10px 12px;">
+        <div class="hint">
+          Manual move (when not running script): <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>
+          <br />Click <strong>Run</strong> to execute your Blockly program.
+        </div>
+      </div>
+      <div style="position: absolute; bottom: 20px; right: 20px; display: flex; gap: 10px; z-index: 100;">
+        <button id="quest-btn" class="hud-btn">Quests</button>
+        <button id="shop-btn" class="hud-btn">Shop</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toolbox -->
+  <xml id="toolbox" style="display:none">
+    <category name="Program" colour="#6f5eff">
+      <block type="on_start"></block>
+    </category>
+    <category name="Movement" colour="#32a852">
+      <block type="move_dir">
+        <field name="DIR">UP</field>
+      </block>
+      <block type="move_dir">
+        <field name="DIR">DOWN</field>
+      </block>
+      <block type="move_dir">
+        <field name="DIR">LEFT</field>
+      </block>
+      <block type="move_dir">
+        <field name="DIR">RIGHT</field>
+      </block>
+      <block type="harvest_dir"></block>
+    </category>
+    <category name="Logic" colour="#5b80a5">
+      <block type="controls_if"></block>
+      <block type="logic_compare"></block>
+      <block type="logic_operation"></block>
+      <block type="logic_negate"></block>
+      <block type="logic_boolean"></block>
+    </category>
+    <category name="Loops" colour="#e0a800">
+      <block type="controls_repeat_ext">
+        <value name="TIMES">
+          <shadow type="math_number">
+            <field name="NUM">4</field>
+          </shadow>
+        </value>
+      </block>
+    </category>
+    <category name="Math" colour="#4a90e2">
+      <block type="math_number"></block>
+    </category>
+  </xml>
+
+  <!-- Default workspace -->
+  <xml id="startBlocks" style="display:none">
+    <block type="on_start" x="20" y="20">
+      <statement name="DO">
+        <block type="controls_repeat_ext">
+          <value name="TIMES">
+            <shadow type="math_number">
+              <field name="NUM">3</field>
+            </shadow>
+          </value>
+          <statement name="DO">
+            <block type="move_dir">
+              <field name="DIR">RIGHT</field>
+              <next>
+                <block type="move_dir">
+                  <field name="DIR">DOWN</field>
+                </block>
+              </next>
+            </block>
+          </statement>
+        </block>
+      </statement>
+    </block>
+  </xml>
+
+  <!-- App scripts -->
+  <script src="js/helpers.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/blockly-setup.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/char-manager.js"></script>
+  <script src="js/main.js"></script>
+</body>
+
+</html>
