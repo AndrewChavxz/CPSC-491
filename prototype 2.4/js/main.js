@@ -365,7 +365,10 @@ window.App = window.App || {};
     // Exchange Buttons
     const exchangeTreesBtn = document.getElementById("exchange-trees-btn");
     const exchangeRocksBtn = document.getElementById("exchange-rocks-btn");
-    const buyTentBtn = document.getElementById("buy-tent-btn");
+    const buyCabinBtn = document.getElementById("buy-cabin-btn");
+    const buyHouse1Btn = document.getElementById("buy-house1-btn");
+    const buyHouse2Btn = document.getElementById("buy-house2-btn");
+    const buyHouse3Btn = document.getElementById("buy-house3-btn");
 
     if (shopBtn) {
       shopBtn.addEventListener("click", () => {
@@ -435,19 +438,131 @@ window.App = window.App || {};
         }
       });
 
-      // Building Logic
-      buyTentBtn.addEventListener("click", () => {
-        if (App.Engine.gameState.goldCount >= 10) {
-          App.Engine.gameState.goldCount -= 10;
-          App.Engine.gameState.buildings.push("Tent");
+      // Building Logic Helpers
+      function buyBuilding(btnName, cost, buildingName) {
+        if (App.Engine.gameState.goldCount >= cost) {
+          App.Engine.gameState.goldCount -= cost;
+          App.Engine.gameState.buildings.push(buildingName);
           App.UI.updateCounters(App.Engine.gameState.treeCount, App.Engine.gameState.rockCount, App.Engine.gameState.goldCount);
           App.Engine.saveToStorage();
-          alert("Tent purchased!");
+          alert(`${buildingName} purchased!`);
         } else {
-          alert("Not enough gold! You need 10 gold.");
+          alert(`Not enough gold! You need ${cost} gold.`);
         }
+      }
+
+      // Building Logic
+      buyCabinBtn.addEventListener("click", () => buyBuilding("buy-cabin", 5, "Cabin"));
+      buyHouse1Btn.addEventListener("click", () => buyBuilding("buy-house1", 10, "House 1"));
+      buyHouse2Btn.addEventListener("click", () => buyBuilding("buy-house2", 10, "House 2"));
+      buyHouse3Btn.addEventListener("click", () => buyBuilding("buy-house3", 10, "House 3"));
+    }
+
+    // Inventory and Placement Logic
+    let isPlacingBuilding = false;
+    let placingBuildingType = "";
+
+    const inventoryBtn = document.getElementById("inventory-btn");
+    const inventoryScreen = document.getElementById("inventory-screen");
+    const closeInventoryBtn = document.getElementById("close-inventory-btn");
+    const inventoryContainer = document.getElementById("inventory-container");
+
+    if (inventoryBtn) {
+      inventoryBtn.addEventListener("click", () => {
+        inventoryContainer.innerHTML = "";
+        const counts = {};
+        App.Engine.gameState.buildings.forEach(b => { counts[b] = (counts[b] || 0) + 1; });
+
+        if (Object.keys(counts).length === 0) {
+          inventoryContainer.innerHTML = "<p>No buildings in inventory.</p>";
+        } else {
+          for (const [bName, count] of Object.entries(counts)) {
+            const item = document.createElement("div");
+            item.className = "building-item";
+            item.style.padding = "20px";
+            item.style.minWidth = "120px";
+            item.innerHTML = `
+              <p style="font-size: 1.2em; font-weight: bold;">${bName}</p>
+              <p style="color: #bbb;">Owned: ${count}</p>
+              <button class="place-btn" data-type="${bName}" style="padding: 10px 20px; margin-top: 10px;">Place</button>
+            `;
+            inventoryContainer.appendChild(item);
+          }
+
+          inventoryContainer.querySelectorAll(".place-btn").forEach(btn => {
+            btn.addEventListener("click", (e) => {
+              placingBuildingType = e.target.getAttribute("data-type");
+              isPlacingBuilding = true;
+              App.UI.setStatus(`Placing ${placingBuildingType}... Click on the grid.`);
+              inventoryScreen.classList.add("hidden");
+            });
+          });
+        }
+        inventoryScreen.classList.remove("hidden");
+      });
+
+      closeInventoryBtn.addEventListener("click", () => {
+        inventoryScreen.classList.add("hidden");
       });
     }
+
+    // Handle Canvas clicks for placement
+    App.Engine.canvas.addEventListener("click", (e) => {
+      if (!isPlacingBuilding) return;
+
+      const rect = App.Engine.canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const isoPos = App.Engine.screenToIso(x, y);
+
+      if (App.Engine.placeBuilding(isoPos.x, isoPos.y, placingBuildingType)) {
+        const idx = App.Engine.gameState.buildings.indexOf(placingBuildingType);
+        if (idx > -1) App.Engine.gameState.buildings.splice(idx, 1);
+
+        App.Engine.saveToStorage();
+        App.UI.setStatus(`${placingBuildingType} placed!`);
+        App.Engine.setPreviewBuilding(null);
+        App.Engine.render(); // Force redraw immediately
+        isPlacingBuilding = false;
+        placingBuildingType = "";
+      } else {
+        App.UI.setStatus("Cannot place there! Tile is blocked or invalid.");
+      }
+    });
+
+    // Handle Canvas mousemove for preview
+    App.Engine.canvas.addEventListener("mousemove", (e) => {
+      if (!isPlacingBuilding) return;
+
+      const rect = App.Engine.canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const isoPos = App.Engine.screenToIso(x, y);
+      App.Engine.setPreviewBuilding(isoPos.x, isoPos.y, placingBuildingType);
+    });
+
+    // Handle cancel placement (Escape or right click)
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && isPlacingBuilding) {
+        isPlacingBuilding = false;
+        placingBuildingType = "";
+        App.Engine.setPreviewBuilding(null);
+        App.UI.setStatus("Placement cancelled.");
+      }
+    });
+
+    App.Engine.canvas.addEventListener("contextmenu", (e) => {
+      if (isPlacingBuilding) {
+        e.preventDefault();
+        isPlacingBuilding = false;
+        placingBuildingType = "";
+        App.Engine.setPreviewBuilding(null);
+        App.UI.setStatus("Placement cancelled.");
+      }
+    });
+
   }
 
   // Initialize UI Counters

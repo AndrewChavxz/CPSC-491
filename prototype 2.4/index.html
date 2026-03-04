@@ -58,16 +58,40 @@
 
   <div id="buildings-screen" class="hidden screen-overlay">
     <h1>Buildings</h1>
-    <div class="panel" style="padding: 20px; text-align: center;">
-      <p>Purchase buildings to expand!</p>
-      <div style="display: flex; gap: 20px; justify-content: center; margin: 20px 0;">
-        <div class="building-item">
-          <p>Tent</p>
-          <p class="price">10 Gold</p>
-          <button id="buy-tent-btn">Buy</button>
+    <div class="panel"
+      style="padding: 40px; text-align: center; width: 80%; max-width: 800px; max-height: 80vh; overflow-y: auto;">
+      <p style="font-size: 1.5em; margin-bottom: 20px;">Purchase buildings to expand!</p>
+      <div style="display: flex; gap: 30px; justify-content: center; margin: 30px 0; flex-wrap: wrap;">
+        <div class="building-item" style="padding: 25px; min-width: 130px;">
+          <img src="images/cabin.png"
+            style="width: 80px; height: 80px; object-fit: contain; image-rendering: pixelated;" alt="Cabin" />
+          <p style="font-size: 1.3em; margin: 10px 0; font-weight: bold;">Cabin</p>
+          <p class="price" style="font-size: 1.2em;">5 Gold</p>
+          <button id="buy-cabin-btn" style="padding: 10px 20px; font-size: 1.1em; margin-top: 10px;">Buy</button>
+        </div>
+        <div class="building-item" style="padding: 25px; min-width: 130px;">
+          <img src="images/house_1.png"
+            style="width: 80px; height: 80px; object-fit: contain; image-rendering: pixelated;" alt="House 1" />
+          <p style="font-size: 1.3em; margin: 10px 0; font-weight: bold;">House 1</p>
+          <p class="price" style="font-size: 1.2em;">10 Gold</p>
+          <button id="buy-house1-btn" style="padding: 10px 20px; font-size: 1.1em; margin-top: 10px;">Buy</button>
+        </div>
+        <div class="building-item" style="padding: 25px; min-width: 130px;">
+          <img src="images/house_2.png"
+            style="width: 80px; height: 80px; object-fit: contain; image-rendering: pixelated;" alt="House 2" />
+          <p style="font-size: 1.3em; margin: 10px 0; font-weight: bold;">House 2</p>
+          <p class="price" style="font-size: 1.2em;">10 Gold</p>
+          <button id="buy-house2-btn" style="padding: 10px 20px; font-size: 1.1em; margin-top: 10px;">Buy</button>
+        </div>
+        <div class="building-item" style="padding: 25px; min-width: 130px;">
+          <img src="images/house_4.png"
+            style="width: 80px; height: 80px; object-fit: contain; image-rendering: pixelated;" alt="House 3" />
+          <p style="font-size: 1.3em; margin: 10px 0; font-weight: bold;">House 3</p>
+          <p class="price" style="font-size: 1.2em;">10 Gold</p>
+          <button id="buy-house3-btn" style="padding: 10px 20px; font-size: 1.1em; margin-top: 10px;">Buy</button>
         </div>
       </div>
-      <button id="close-buildings-btn">Back</button>
+      <button id="close-buildings-btn" style="padding: 12px 30px; font-size: 1.1em; font-weight: bold;">Back</button>
     </div>
   </div>
 
@@ -110,6 +134,19 @@
     </div>
   </div>
 
+  <div id="inventory-screen" class="hidden screen-overlay">
+    <h1>Inventory</h1>
+    <div class="panel"
+      style="padding: 40px; text-align: center; width: 80%; max-width: 800px; max-height: 80vh; overflow-y: auto;">
+      <p style="font-size: 1.5em; margin-bottom: 20px;">Place your buildings!</p>
+      <div id="inventory-container"
+        style="display: flex; gap: 30px; justify-content: center; margin: 30px 0; flex-wrap: wrap;">
+        <!-- Buildings injected here dynamically -->
+      </div>
+      <button id="close-inventory-btn" style="padding: 12px 30px; font-size: 1.1em; font-weight: bold;">Back</button>
+    </div>
+  </div>
+
   <div id="app" style="display: none;">
     <div id="left">
       <div class="panel" id="controls">
@@ -143,6 +180,8 @@
         </div>
       </div>
       <div style="position: absolute; bottom: 20px; right: 20px; display: flex; gap: 10px; z-index: 100;">
+        <button id="inventory-btn" class="hud-btn"
+          style="background: linear-gradient(135deg, #1e90ff, #0000cd);">Inventory</button>
         <button id="quest-btn" class="hud-btn">Quests</button>
         <button id="shop-btn" class="hud-btn">Shop</button>
       </div>

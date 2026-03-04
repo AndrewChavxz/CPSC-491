@@ -6,7 +6,7 @@ window.App = window.App || {};
   const ctx = canvas.getContext("2d");
 
   const tileW = 100, tileH = 50, blockH = 30; // Zoomed in
-  const gridCols = 50, gridRows = 50;
+  const gridCols = 100, gridRows = 100;
 
   // Multi-character support
   const characters = [];
@@ -68,7 +68,8 @@ window.App = window.App || {};
           rockCount: gameState.rockCount,
           goldCount: gameState.goldCount,
           buildings: gameState.buildings
-        }
+        },
+        worldObjects: Array.from(worldObjects.entries())
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (e) {
@@ -107,6 +108,13 @@ window.App = window.App || {};
         gameState.buildings = data.gameState.buildings || [];
       }
 
+      if (data.worldObjects) {
+        worldObjects.clear();
+        data.worldObjects.forEach(([k, v]) => worldObjects.set(k, v));
+      } else {
+        generateWorld();
+      }
+
       console.log("Loaded characters:", characters);
       // Validate active ID
       if (!characters.some(c => c.id === activeCharId)) {
@@ -121,14 +129,15 @@ window.App = window.App || {};
     }
   }
 
+  const worldObjects = new Map();
+
   // Load or create default
   if (!loadFromStorage()) {
     console.log("No save found, creating default.");
     createCharacter("char_1", 50, 50, "#ffd36e");
+    generateWorld();
     saveToStorage();
   }
-
-  const worldObjects = new Map();
   let panOffset = { x: 0, y: 0 }; // Screen space offset
   let isPanning = false;
   let lastMouse = { x: 0, y: 0 };
@@ -149,19 +158,37 @@ window.App = window.App || {};
   });
 
   function generateWorld() {
-    for (let i = 0; i < gridCols; i++) {
-      for (let j = 0; j < gridRows; j++) {
-        // Safe zone around spawn
-        if (Math.abs(i - 50) < 4 && Math.abs(j - 50) < 4) continue;
+    const numClusters = 180; // lots of clusters
+    for (let c = 0; c < numClusters; c++) {
+      const cx = Math.floor(Math.random() * gridCols);
+      const cy = Math.floor(Math.random() * gridRows);
+      const isTreeCluster = Math.random() < 0.6; // 60% tree clusters, 40% rock clusters
+      const clusterSize = 10 + Math.random() * 30; // 10 to 40 items per cluster
 
-        if (Math.random() < 0.05) { // Reduced density
-          const type = Math.random() < 0.6 ? 'tree' : 'rock';
-          worldObjects.set(`${i},${j}`, type);
+      for (let k = 0; k < clusterSize; k++) {
+        const ox = Math.floor((Math.random() + Math.random() + Math.random() - 1.5) * 8);
+        const oy = Math.floor((Math.random() + Math.random() + Math.random() - 1.5) * 8);
+        const px = cx + ox;
+        const py = cy + oy;
+
+        if (px >= 0 && px < gridCols && py >= 0 && py < gridRows) {
+          // Safe zone around spawn
+          if (Math.abs(px - 50) < 4 && Math.abs(py - 50) < 4) continue;
+
+          // 80% to be cluster type, 20% to be other
+          const typeCategory = Math.random() < 0.8 ? (isTreeCluster ? 'tree' : 'rock') : (isTreeCluster ? 'rock' : 'tree');
+
+          let variant;
+          if (typeCategory === 'tree') variant = Math.random() < 0.5 ? 'tree_oak' : 'tree_pine';
+          else variant = Math.random() < 0.5 ? 'rock_2' : 'rock_3';
+
+          worldObjects.set(`${px},${py}`, variant);
         }
       }
     }
   }
-  generateWorld();
+  // generator is run inside loadFromStorage or default creation now
+
 
   function resizeCanvas() {
     const rect = canvas.getBoundingClientRect();
@@ -189,6 +216,27 @@ window.App = window.App || {};
     };
   }
 
+  function screenToIso(screenX, screenY) {
+    const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+    const centerX = canvas.width / (2 * dpr);
+    const centerY = canvas.height / (2 * dpr);
+
+    const activeChar = characters.find(c => c.id === activeCharId) || characters[0];
+    const px = activeChar ? activeChar.x : 50;
+    const py = activeChar ? activeChar.y : 50;
+
+    const adjX = screenX * dpr - centerX - panOffset.x;
+    const adjY = screenY * dpr - centerY - panOffset.y;
+
+    const dx = 0.5 * (adjX / (tileW / 2) + adjY / (tileH / 2));
+    const dy = 0.5 * (adjY / (tileH / 2) - adjX / (tileW / 2));
+
+    return {
+      x: Math.round(px + dx),
+      y: Math.round(py + dy)
+    };
+  }
+
   function isWalkable(x, y) {
     // Bounds check
     if (x < 0 || x >= gridCols || y < 0 || y >= gridRows) return false;
@@ -201,6 +249,23 @@ window.App = window.App || {};
     return true;
   }
 
+  function placeBuilding(x, y, variant) {
+    const i = Math.round(x);
+    const j = Math.round(y);
+    if (!isWalkable(i, j)) return false; // Cell must be free!
+
+    // Prevent placing on player or within safe zone
+    if (Math.abs(i - 50) < 4 && Math.abs(j - 50) < 4) return false;
+    // Check characters
+    for (const char of characters) {
+      if (Math.round(char.x) === i && Math.round(char.y) === j) return false;
+    }
+
+    worldObjects.set(`${i},${j}`, `building_${variant}`);
+    saveToStorage();
+    return true;
+  }
+
   function harvestObject(x, y) {
     const i = Math.round(x);
     const j = Math.round(y);
@@ -210,10 +275,17 @@ window.App = window.App || {};
       const type = worldObjects.get(key);
       worldObjects.delete(key);
 
-      if (type === 'tree') gameState.treeCount++;
-      if (type === 'rock') gameState.rockCount++;
-
-      return type;
+      if (type.startsWith('tree')) {
+        gameState.treeCount++;
+        return 'tree';
+      } else if (type.startsWith('rock')) {
+        gameState.rockCount++;
+        return 'rock';
+      } else if (type.startsWith('building_')) {
+        const bName = type.replace('building_', '');
+        gameState.buildings.push(bName);
+        return bName;
+      }
     }
     return null;
   }
@@ -258,17 +330,56 @@ window.App = window.App || {};
     ctx.stroke();
   }
 
-  const treeImg = new Image();
-  treeImg.src = "Images/Tree_1.png";
+  const treeOakImg = new Image();
+  treeOakImg.src = "images/oak_tree.png";
 
-  const rockImg = new Image();
-  rockImg.src = "Images/rock_2.png";
+  const treePineImg = new Image();
+  treePineImg.src = "images/Pine_Tree.png";
 
-  function drawTree(i, j) {
+  const rock2Img = new Image();
+  rock2Img.src = "images/rock_2.png";
+
+  const rock3Img = new Image();
+  rock3Img.src = "images/rock_3.png";
+
+  const cabinImg = new Image();
+  cabinImg.src = "images/cabin.png";
+
+  const house1Img = new Image();
+  house1Img.src = "images/house_1.png";
+
+  const house2Img = new Image();
+  house2Img.src = "images/house_2.png";
+
+  const house3Img = new Image();
+  house3Img.src = "images/house_4.png";
+
+  function drawBuilding(i, j, variant) {
     const p = isoToScreen(i, j);
+    let img;
+    let imgWidth = 180;
+    let imgHeight = 180;
+    let yOffset = 70; // adjust to sit on tile
+
+    switch (variant) {
+      case 'building_Cabin': img = cabinImg; break;
+      case 'building_House 1': img = house1Img; break;
+      case 'building_House 2': img = house2Img; break;
+      case 'building_House 3': img = house3Img; break;
+      default: return; // unknown building
+    }
+
+    if (!img.complete || img.naturalWidth === 0) return; // wait for load
+
+    ctx.drawImage(img, p.x - imgWidth / 2, p.y - blockH - imgHeight + yOffset, imgWidth, imgHeight);
+  }
+
+  function drawTree(i, j, variant) {
+    const p = isoToScreen(i, j);
+    const img = variant === 'tree_oak' ? treeOakImg : treePineImg;
 
     // Fallback if image isn't loaded yet
-    if (!treeImg.complete || treeImg.naturalWidth === 0) {
+    if (!img.complete || img.naturalWidth === 0) {
       const base = { x: p.x, y: p.y };
       ctx.fillStyle = "#8B4513";
       ctx.fillRect(base.x - 4, base.y - 10 - blockH, 8, 20);
@@ -283,16 +394,17 @@ window.App = window.App || {};
       return;
     }
 
-    const imgWidth = 50;
-    const imgHeight = 70;
-    ctx.drawImage(treeImg, p.x - imgWidth / 2, p.y - blockH - imgHeight + 15, imgWidth, imgHeight);
+    const imgWidth = 100;
+    const imgHeight = 140;
+    ctx.drawImage(img, p.x - imgWidth / 2, p.y - blockH - imgHeight + 30, imgWidth, imgHeight);
   }
 
-  function drawRock(i, j) {
+  function drawRock(i, j, variant) {
     const p = isoToScreen(i, j);
+    const img = variant === 'rock_2' ? rock2Img : rock3Img;
 
     // Fallback if image isn't loaded yet
-    if (!rockImg.complete || rockImg.naturalWidth === 0) {
+    if (!img.complete || img.naturalWidth === 0) {
       ctx.fillStyle = "#808080";
       ctx.beginPath();
       ctx.arc(p.x, p.y - 5 - blockH, 8, 0, Math.PI * 2);
@@ -302,9 +414,9 @@ window.App = window.App || {};
       return;
     }
 
-    const imgWidth = 26;
-    const imgHeight = 26;
-    ctx.drawImage(rockImg, p.x - imgWidth / 2, p.y - blockH - imgHeight + 10, imgWidth, imgHeight);
+    const imgWidth = 52;
+    const imgHeight = 52;
+    ctx.drawImage(img, p.x - imgWidth / 2, p.y - blockH - imgHeight + 20, imgWidth, imgHeight);
   }
 
   function clampPlayer(char) {
@@ -404,8 +516,16 @@ window.App = window.App || {};
         const key = `${i},${j}`;
         if (worldObjects.has(key)) {
           const type = worldObjects.get(key);
-          if (type === 'tree') drawTree(i, j);
-          else if (type === 'rock') drawRock(i, j);
+          if (type.startsWith('tree')) drawTree(i, j, type);
+          else if (type.startsWith('rock')) drawRock(i, j, type);
+          else if (type.startsWith('building_')) drawBuilding(i, j, type);
+        }
+
+        // Draw preview building
+        if (previewBuilding && previewBuilding.x === i && previewBuilding.y === j) {
+          ctx.globalAlpha = 0.5;
+          drawBuilding(i, j, `building_${previewBuilding.variant}`);
+          ctx.globalAlpha = 1.0;
         }
 
         // Draw characters if this is their tile
@@ -422,6 +542,15 @@ window.App = window.App || {};
     clearScene();
     drawGrid();
     // drawCharacter() call moved into grid loop for depth
+  }
+
+  let previewBuilding = null;
+  function setPreviewBuilding(x, y, variant) {
+    if (x === null) {
+      previewBuilding = null;
+    } else {
+      previewBuilding = { x: Math.round(x), y: Math.round(y), variant };
+    }
   }
 
   function getActiveCharacter() {
@@ -450,6 +579,9 @@ window.App = window.App || {};
     render,
     saveToStorage, // Exposed
     isWalkable, // Exposed for collision check
+    screenToIso,
+    placeBuilding,
+    setPreviewBuilding,
     harvestObject,
     gameState
   };
