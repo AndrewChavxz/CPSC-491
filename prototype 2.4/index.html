@@ -128,7 +128,9 @@
         <!-- Teaches injected here -->
       </ul>
 
-      <div style="text-align: center; margin-top: 20px;">
+      <div style="text-align: center; margin-top: 20px; display: flex; justify-content: center; gap: 10px;">
+        <button id="start-quest-btn" class="hud-btn"
+          style="background: linear-gradient(135deg, #32a852, #228b22);">Start Quest</button>
         <button id="close-quest-details-btn">Back to Quests</button>
       </div>
     </div>
@@ -148,6 +150,18 @@
   </div>
 
   <div id="app" style="display: none;">
+    <!-- Active Quest HUD -->
+    <div id="active-quest-hud" class="panel hidden"
+      style="position: absolute; top: 60px; right: 10px; width: 250px; z-index: 10; padding: 10px; border-left: 4px solid #32a852;">
+      <h3 id="active-quest-title" style="margin: 0 0 5px 0; font-size: 14px; color: #32a852;">Quest Title</h3>
+      <p id="active-quest-objective" style="margin: 0 0 5px 0; font-size: 12px; color: #ccc;">Objective</p>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
+        <span id="active-quest-timer"
+          style="font-family: monospace; font-size: 16px; font-weight: bold; color: #fbff00;">05:00</span>
+        <button id="cancel-quest-btn" style="padding: 4px 8px; font-size: 10px; background: #c0392b;">Cancel</button>
+      </div>
+      <div id="active-quest-progress" style="margin-top: 5px; font-size: 11px; color: #ddd;"></div>
+    </div>
     <div id="left">
       <div class="panel" id="controls">
         <div>
@@ -256,11 +270,27 @@
 
   <!-- App scripts -->
   <script src="js/helpers.js"></script>
+
+  <!-- Core Engine Components -->
   <script src="js/engine.js"></script>
+  <script src="js/world.js"></script>
+  <script src="js/assets.js"></script>
+  <script src="js/storage.js"></script>
+
+  <!-- Input and Blockly -->
   <script src="js/input.js"></script>
   <script src="js/blockly-setup.js"></script>
+
+  <!-- Game Logic and UI -->
   <script src="js/ui.js"></script>
+  <script src="js/ui-shop.js"></script>
+  <script src="js/ui-inventory.js"></script>
+  <script src="js/ui-quests.js"></script>
   <script src="js/char-manager.js"></script>
+  <script src="js/quest-manager.js"></script>
+  <script src="js/action-queue.js"></script>
+
+  <!-- Main Loop (starts it all) -->
   <script src="js/main.js"></script>
 </body>
 

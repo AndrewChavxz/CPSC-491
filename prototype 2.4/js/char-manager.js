@@ -1,24 +1,25 @@
 window.App = window.App || {};
 
 (function () {
-    const { createCharacter, getActiveCharacter, setActiveCharacter, characters } = App.Engine;
+    // We remove the DOMContentLoaded wrapper here. 
+    // Engine.js will explicitly call App.CharManager.init() when it is ready.
     const { workspace } = App.BlocklyStuff;
     const { setStatus } = App.UI;
 
     function refreshCharList() {
         const list = document.getElementById("charList");
-        console.log("Refreshing char list. Characters:", characters.length, characters);
+        console.log("Refreshing char list. Characters:", App.Engine.characters.length, App.Engine.characters);
         if (!list) return;
         list.innerHTML = "";
 
-        characters.forEach(char => {
+        App.Engine.characters.forEach(char => {
             const btn = document.createElement("button");
             btn.textContent = char.id;
             btn.style.backgroundColor = char.color;
             btn.style.margin = "5px";
             btn.onclick = () => switchToCharacter(char.id);
 
-            const active = getActiveCharacter();
+            const active = App.Engine.getActiveCharacter();
             if (active && active.id === char.id) {
                 btn.style.border = "2px solid white";
                 btn.style.fontWeight = "bold";
@@ -61,6 +62,15 @@ window.App = window.App || {};
             container.appendChild(delBtn);
             list.appendChild(container);
         });
+
+        // ----------------------------------------------------
+        // Fix for Blockly workspace squishing when list changes height
+        if (workspace && typeof Blockly !== 'undefined' && Blockly.svgResize) {
+            // Need to let the browser relayout the DOM flexbox before Blockly measures it
+            setTimeout(() => {
+                Blockly.svgResize(workspace);
+            }, 50);
+        }
     }
 
     let isSwitching = false;
@@ -84,20 +94,20 @@ window.App = window.App || {};
         console.log(`[Switch] Request to switch to ${id}. saveCurrent=${saveCurrent}`);
         try {
             isSwitching = true; // Block auto-save
-            const current = getActiveCharacter();
+            const current = App.Engine.getActiveCharacter();
             if (current && saveCurrent) {
                 // Save current workspace BEFORE switching active char
                 const xmlDom = Blockly.Xml.workspaceToDom(workspace);
                 const xmlText = Blockly.Xml.domToText(xmlDom);
                 current.workspaceXML = xmlText;
                 console.log(`[Switch] Saved ${current.id} workspace. XML len: ${xmlText.length}`);
-                App.Engine.saveToStorage();
+                App.Storage.saveToStorage();
             } else {
                 console.log("[Switch] No current character or saveCurrent=false. Skipping save.");
             }
 
-            setActiveCharacter(id);
-            const next = getActiveCharacter();
+            App.Engine.setActiveCharacter(id);
+            const next = App.Engine.getActiveCharacter();
             console.log(`[Switch] Active set to ${id}. Loading workspace...`);
 
             // Load next workspace
@@ -142,7 +152,7 @@ window.App = window.App || {};
     function createNewCharacter() {
         // Find first available ID
         let idIndex = 1;
-        while (characters.some(c => c.id === `char_${idIndex}`)) {
+        while (App.Engine.characters.some(c => c.id === `char_${idIndex}`)) {
             idIndex++;
         }
         const id = `char_${idIndex}`;
@@ -154,8 +164,8 @@ window.App = window.App || {};
         const colors = ["#ff6e6e", "#6eff6e", "#6e6eff", "#ffff6e", "#ff6eff", "#6effff"];
         const color = colors[Math.floor(Math.random() * colors.length)];
 
-        createCharacter(id, x, y, color);
-        App.Engine.saveToStorage(); // Save new char
+        App.Engine.createCharacter(id, x, y, color);
+        App.Storage.saveToStorage(); // Save new char
         switchToCharacter(id);
     }
 
@@ -164,60 +174,65 @@ window.App = window.App || {};
         if (isSwitching) return; // Prevent saving during switch (e.g. clearing workspace)
         if (event.type === Blockly.Events.UI) return; // Ignore UI events like scrolling
 
-        const current = getActiveCharacter();
+        const current = App.Engine.getActiveCharacter();
         if (current) {
             // console.log(`[AutoSave] Saving ${current.id}...`); // Optional: might spam
             const xml = Blockly.Xml.workspaceToDom(workspace);
             current.workspaceXML = Blockly.Xml.domToText(xml);
-            App.Engine.saveToStorage();
+            App.Storage.saveToStorage();
         } else {
             console.warn("[AutoSave] No active character!");
         }
     }
     workspace.addChangeListener(onBlocklyChange);
 
-    // Initial load handling: 
-    // If we loaded from storage, we need to load the active character's workspace into Blockly
-    try {
-        const initialChar = getActiveCharacter();
-        if (initialChar && initialChar.workspaceXML) {
-            try {
-                const xml = Blockly.Xml.textToDom(initialChar.workspaceXML);
-                Blockly.Xml.domToWorkspace(xml, workspace);
-                setStatus(`Loaded ${initialChar.id}`);
-            } catch (blocklyErr) {
-                console.error("Failed to restore workspace on init:", blocklyErr);
-                setStatus(`Error loading ${initialChar.id} workspace`);
+    // Initial load handling logic packaged into an init function
+    function init() {
+        try {
+            const initialChar = App.Engine.getActiveCharacter();
+            if (initialChar && initialChar.workspaceXML) {
+                try {
+                    const xml = Blockly.Xml.textToDom(initialChar.workspaceXML);
+                    Blockly.Xml.domToWorkspace(xml, workspace);
+                    setStatus(`Loaded ${initialChar.id}`);
+                } catch (blocklyErr) {
+                    console.error("Failed to restore workspace on init:", blocklyErr);
+                    setStatus(`Error loading ${initialChar.id} workspace`);
+                }
             }
+        } catch (err) {
+            console.error("Critical error during char-manager init:", err);
+        } finally {
+            // Always refresh list so users can see/delete characters even if load fails
+            // It uses a timeout here to ensure it runs after the DOM processes the panel insertion.
+            setTimeout(refreshCharList, 10);
         }
-    } catch (err) {
-        console.error("Critical error during char-manager init:", err);
-    } finally {
-        // Always refresh list so users can see/delete characters even if load fails
+
+        // Initial UI Setup
+        const panel = document.createElement("div");
+        panel.className = "panel";
+        panel.style.marginTop = "10px";
+        panel.innerHTML = `
+        <div class="hint">Characters</div>
+        <div id="charList" style="display:flex; flex-wrap:wrap;"></div>
+        <button id="newCharBtn">New Character</button>
+      `;
+
+        // Insert before controls
+        const controls = document.getElementById("controls");
+        // Check if panel is already there to prevent duplicates during hot reloads
+        if (!document.getElementById("charList")) {
+            controls.parentNode.insertBefore(panel, controls);
+            document.getElementById("newCharBtn").addEventListener("click", createNewCharacter);
+        }
+
+        // Refresh initially
         refreshCharList();
     }
 
-    // Initial UI Setup
-    const panel = document.createElement("div");
-    panel.className = "panel";
-    panel.style.marginTop = "10px";
-    panel.innerHTML = `
-    <div class="hint">Characters</div>
-    <div id="charList" style="display:flex; flex-wrap:wrap;"></div>
-    <button id="newCharBtn">New Character</button>
-  `;
-
-    // Insert before controls
-    const controls = document.getElementById("controls");
-    controls.parentNode.insertBefore(panel, controls);
-
-    document.getElementById("newCharBtn").addEventListener("click", createNewCharacter);
-
-    // Refresh initially
-    refreshCharList();
-
     App.CharManager = {
         switchToCharacter,
-        refreshCharList
+        refreshCharList,
+        init
     };
 })();
