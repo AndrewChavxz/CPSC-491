@@ -78,6 +78,11 @@ window.App = window.App || {};
                     currentMove: null
                 };
                 App.Engine.characters.push(char);
+
+                // Force old characters to fit into the new map dimensions
+                if (App.Engine.clampPlayer) {
+                    App.Engine.clampPlayer(char);
+                }
             });
 
             // Restore the active character ID

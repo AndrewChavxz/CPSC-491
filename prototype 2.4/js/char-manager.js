@@ -157,9 +157,9 @@ window.App = window.App || {};
         }
         const id = `char_${idIndex}`;
 
-        // Random position near spawn
-        const x = 50 + Math.floor(Math.random() * 6) - 3;
-        const y = 50 + Math.floor(Math.random() * 6) - 3;
+        // Exact center position
+        const x = 20;
+        const y = 20;
         // Random color
         const colors = ["#ff6e6e", "#6eff6e", "#6e6eff", "#ffff6e", "#ff6eff", "#6effff"];
         const color = colors[Math.floor(Math.random() * colors.length)];

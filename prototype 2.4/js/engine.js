@@ -18,8 +18,9 @@ window.App = window.App || {};
   // blockH determines how tall each 3D block looks vertically
   const tileW = 100, tileH = 50, blockH = 30;
 
-  // The overall size of the map (100x100 tiles)
-  const gridCols = 100, gridRows = 100;
+  // The overall size of the map (40x40 tiles)
+  const gridCols = 40, gridRows = 40;
+  const CAMERA_ZOOM = 1.8;
 
   // -------------------- Character Management --------------------
 
@@ -97,7 +98,7 @@ window.App = window.App || {};
     // If loadFromStorage is unavailable or fails, generate a new world
     if (!App.Storage || !App.Storage.loadFromStorage()) {
       console.log("No save found or not loaded, creating default world.");
-      createCharacter("char_1", 50, 50, "#ffd36e");
+      createCharacter("char_1", 20, 20, "#ffd36e");
 
       if (App.World) App.World.generateWorld(gridCols, gridRows);
       if (App.Storage) App.Storage.saveToStorage();
@@ -128,8 +129,8 @@ window.App = window.App || {};
     if (!isPanning) return;
     const dx = e.clientX - lastMouse.x;
     const dy = e.clientY - lastMouse.y;
-    panOffset.x += dx;
-    panOffset.y += dy;
+    panOffset.x += dx / CAMERA_ZOOM;
+    panOffset.y += dy / CAMERA_ZOOM;
     lastMouse = { x: e.clientX, y: e.clientY };
   });
 
@@ -157,8 +158,8 @@ window.App = window.App || {};
 
     // The camera will lock onto the active character to center them
     const activeChar = getActiveCharacter() || characters[0];
-    const px = activeChar ? activeChar.x : 50;
-    const py = activeChar ? activeChar.y : 50;
+    const px = activeChar ? activeChar.x : 20;
+    const py = activeChar ? activeChar.y : 20;
 
     const dx = i - px;
     const dy = j - py;
@@ -178,12 +179,12 @@ window.App = window.App || {};
     const centerY = canvas.height / (2 * dpr);
 
     const activeChar = getActiveCharacter() || characters[0];
-    const px = activeChar ? activeChar.x : 50;
-    const py = activeChar ? activeChar.y : 50;
+    const px = activeChar ? activeChar.x : 20;
+    const py = activeChar ? activeChar.y : 20;
 
-    // Adjust for the camera pan offset
-    const adjX = screenX * dpr - centerX - panOffset.x;
-    const adjY = screenY * dpr - centerY - panOffset.y;
+    // Adjust for the camera pan offset and zoom
+    const adjX = (screenX * dpr - centerX) / CAMERA_ZOOM - panOffset.x;
+    const adjY = (screenY * dpr - centerY) / CAMERA_ZOOM - panOffset.y;
 
     // Reverse isometric math algorithm 
     const dx = 0.5 * (adjX / (tileW / 2) + adjY / (tileH / 2));
@@ -239,9 +240,9 @@ window.App = window.App || {};
     // Optimization: We only draw the tiles immediately around the player 
     // instead of rendering the entire 100x100 grid (which would be slow).
     const activeChar = getActiveCharacter() || characters[0];
-    const viewRadius = 18; // 18 tiles in any direction covers the window
-    const px = activeChar ? activeChar.x : 50;
-    const py = activeChar ? activeChar.y : 50;
+    const viewRadius = Math.ceil(18 / CAMERA_ZOOM); // shrink draw boundary when zoomed in
+    const px = activeChar ? activeChar.x : 20;
+    const py = activeChar ? activeChar.y : 20;
 
     const minI = Math.floor(px - viewRadius);
     const maxI = Math.ceil(px + viewRadius);
@@ -296,7 +297,19 @@ window.App = window.App || {};
 
   function render() {
     clearScene();
+
+    const dpr = window.devicePixelRatio || 1;
+    const centerX = canvas.width / (2 * dpr);
+    const centerY = canvas.height / (2 * dpr);
+
+    ctx.save();
+    ctx.translate(centerX, centerY);
+    ctx.scale(CAMERA_ZOOM, CAMERA_ZOOM);
+    ctx.translate(-centerX, -centerY);
+
     drawGrid();
+
+    ctx.restore();
   }
 
   // Initial sizing setup
