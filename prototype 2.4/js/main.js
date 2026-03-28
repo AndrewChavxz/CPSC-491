@@ -123,7 +123,7 @@ window.App = window.App || {};
       stopRunning();
       const char = App.Engine.getActiveCharacter();
       if (char) {
-        char.x = 50; char.y = 50;
+        char.x = 20; char.y = 20;
       }
       setStatus("Reset.");
     }

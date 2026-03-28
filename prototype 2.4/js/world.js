@@ -14,7 +14,7 @@ window.App = window.App || {};
 
     /**
      * Generates a random world filled with clusters of trees and rocks.
-     * Ensures a safe zone around the spawn area (50, 50).
+     * Ensures a safe zone around the spawn area (20, 20).
      * @param {number} gridCols - The total number of columns in the grid.
      * @param {number} gridRows - The total number of rows in the grid.
      */
@@ -39,8 +39,8 @@ window.App = window.App || {};
 
                 // Check if the new position is within the grid
                 if (px >= 0 && px < gridCols && py >= 0 && py < gridRows) {
-                    // Keep a safe zone around the character's starting position (50, 50)
-                    if (Math.abs(px - 50) < 4 && Math.abs(py - 50) < 4) continue;
+                    // Keep a safe zone around the character's starting position (20, 20)
+                    if (Math.abs(px - 20) < 4 && Math.abs(py - 20) < 4) continue;
 
                     // Mostly match the cluster type, but sometimes mix it up
                     const typeCategory = Math.random() < 0.8 ? (isTreeCluster ? 'tree' : 'rock') : (isTreeCluster ? 'rock' : 'tree');
@@ -92,7 +92,7 @@ window.App = window.App || {};
         if (!isWalkable(i, j)) return false;
 
         // Prevent placing a building right on the spawn area
-        if (Math.abs(i - 50) < 4 && Math.abs(j - 50) < 4) return false;
+        if (Math.abs(i - 20) < 4 && Math.abs(j - 20) < 4) return false;
 
         // Check characters
         for (const char of App.Engine.characters) {
