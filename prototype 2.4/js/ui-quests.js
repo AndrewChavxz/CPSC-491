@@ -34,9 +34,7 @@ window.App = window.App || {};
                 }, 200);
             });
 
-            document.getElementById("settings-btn").addEventListener("click", () => {
-                alert("Settings menu coming soon!");
-            });
+
         }
 
         // -------------------- Quest Data --------------------

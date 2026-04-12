@@ -158,8 +158,9 @@ window.App = window.App || {};
 
         // This is the Magic function! 
         // It creates a brand new temporary javascript function out of the code string and runs it.
-        const runner = new Function("GameAPI", `${code}\nif (typeof onStart === "function") onStart();`);
-        runner(App.GameAPI);
+        const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+        const runner = new AsyncFunction("GameAPI", `${code}\nif (typeof onStart === "function") await onStart();`);
+        runner(App.GameAPI).catch(err => console.warn("Script stopped or async error:", err));
 
         const char = App.Engine.getActiveCharacter();
         if (char && char.moveQueue.length === 0) {

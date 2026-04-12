@@ -13,18 +13,32 @@ window.App = window.App || {};
 
     /**
      * Helper function to add a move command to the active character's queue.
+     * Returns a Promise that resolves when the move is fully completed.
      */
     function enqueueMove(dx, dy) {
-        const char = App.Engine.getActiveCharacter();
-        if (char) char.moveQueue.push({ type: 'move', dx, dy });
+        return new Promise(resolve => {
+            const char = App.Engine.getActiveCharacter();
+            if (char) {
+                char.moveQueue.push({ type: 'move', dx, dy, resolve });
+            } else {
+                resolve(); // Fallback if no character found
+            }
+        });
     }
 
     /**
      * Helper function to add a harvest command to the active character's queue.
+     * Returns a Promise that resolves when the harvest action completes.
      */
-    function enqueueHarvest() {
-        const char = App.Engine.getActiveCharacter();
-        if (char) char.moveQueue.push({ type: 'harvest' });
+    function enqueueHarvest(target = "ANY") {
+        return new Promise(resolve => {
+            const char = App.Engine.getActiveCharacter();
+            if (char) {
+                char.moveQueue.push({ type: 'harvest', target, resolve });
+            } else {
+                resolve();
+            }
+        });
     }
 
     // The GameAPI object is what the auto-generated javascript code from Blockly calls
@@ -33,7 +47,28 @@ window.App = window.App || {};
         moveDown: () => enqueueMove(0, 1),
         moveLeft: () => enqueueMove(-1, 0),
         moveRight: () => enqueueMove(1, 0),
-        harvest: () => enqueueHarvest(),
+        harvest: (target) => enqueueHarvest(target),
+        getResource: (type) => App.Engine.gameState[type] || 0,
+        isNextTo: (target) => {
+            const char = App.Engine.getActiveCharacter();
+            if (!char) return false;
+            const offsets = [
+                { dx: 0, dy: -1 }, { dx: 0, dy: 1 },
+                { dx: -1, dy: 0 }, { dx: 1, dy: 0 }
+            ];
+            for (const offset of offsets) {
+                const tx = Math.round(char.x + offset.dx);
+                const ty = Math.round(char.y + offset.dy);
+                const key = `${tx},${ty}`;
+                if (App.World.worldObjects.has(key)) {
+                    const type = App.World.worldObjects.get(key);
+                    if (target === 'ANY') return true;
+                    if (target === 'TREE' && type.startsWith('tree')) return true;
+                    if (target === 'ROCK' && type.startsWith('rock')) return true;
+                }
+            }
+            return false;
+        },
 
         // Cancels all pending movements and stops the character
         resetQueue: () => {
@@ -81,6 +116,10 @@ window.App = window.App || {};
                         const targetX = char.x + offset.dx;
                         const targetY = char.y + offset.dy;
 
+                        const key = `${Math.round(targetX)},${Math.round(targetY)}`;
+                        if (action.target === 'TREE' && (!App.World.worldObjects.has(key) || !App.World.worldObjects.get(key).startsWith('tree'))) return;
+                        if (action.target === 'ROCK' && (!App.World.worldObjects.has(key) || !App.World.worldObjects.get(key).startsWith('rock'))) return;
+
                         // Try harvesting the tile in the world
                         const harvested = App.World.harvestObject(targetX, targetY);
                         if (harvested) {
@@ -110,6 +149,7 @@ window.App = window.App || {};
                     }
 
                     // Consume the harvest action so we can move to the next command
+                    if (action.resolve) action.resolve();
                     char.moveQueue.shift();
                     return;
                 }
@@ -127,6 +167,7 @@ window.App = window.App || {};
 
                     // If the tile is blocked (e.g. by a rock), cancel the move entirely
                     if (!App.World.isWalkable(tx, ty)) {
+                        if (action.resolve) action.resolve();
                         char.moveQueue.shift();
                         return;
                     }
@@ -136,7 +177,8 @@ window.App = window.App || {};
                     char.currentMove = {
                         t: 0,                            // Timer starting at 0
                         startX: char.x, startY: char.y,  // From here...
-                        targetX: tx, targetY: ty         // ...to there
+                        targetX: tx, targetY: ty,        // ...to there
+                        resolve: m.resolve               // Keep the promise resolver to call when animation is done
                     };
                 }
             }
@@ -156,6 +198,7 @@ window.App = window.App || {};
                 if (t >= 1) {
                     char.x = char.currentMove.targetX;
                     char.y = char.currentMove.targetY;
+                    if (char.currentMove.resolve) char.currentMove.resolve(); // Resolve the promise!
                     char.currentMove = null; // Clear it so the next command can start
                 }
             }

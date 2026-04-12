@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Isometric Grid + Blockly Movement (Fixed)</title>
+  <title>Code Colony</title>
 
   <!-- Styles -->
   <link rel="stylesheet" href="styles.css" />
@@ -20,7 +20,6 @@
     <h1>Code Colony</h1>
     <div class="menu">
       <button id="start-game-btn">Start</button>
-      <button id="settings-btn">Settings</button>
     </div>
   </div>
 
@@ -237,6 +236,7 @@
           </shadow>
         </value>
       </block>
+      <block type="controls_whileUntil"></block>
     </category>
     <category name="Math" colour="#4a90e2">
       <block type="math_number"></block>
@@ -254,24 +254,49 @@
       </block>
     </category>
     <category name="Variables" colour="#a55b80" custom="VARIABLE"></category>
+    <category name="Sensors" colour="#ff8c00">
+      <block type="get_resource_count"></block>
+      <block type="is_next_to"></block>
+    </category>
   </xml>
 
   <!-- Default workspace -->
   <xml id="startBlocks" style="display:none">
     <block type="on_start" x="20" y="20">
       <statement name="DO">
-        <block type="controls_repeat_ext">
-          <value name="TIMES">
-            <shadow type="math_number">
-              <field name="NUM">3</field>
-            </shadow>
+        <block type="controls_whileUntil">
+          <field name="MODE">WHILE</field>
+          <value name="BOOL">
+            <block type="logic_compare">
+              <field name="OP">LT</field>
+              <value name="A">
+                <block type="get_resource_count">
+                  <field name="RESOURCE">treeCount</field>
+                </block>
+              </value>
+              <value name="B">
+                <block type="math_number">
+                  <field name="NUM">20</field>
+                </block>
+              </value>
+            </block>
           </value>
           <statement name="DO">
             <block type="move_dir">
               <field name="DIR">RIGHT</field>
               <next>
-                <block type="move_dir">
-                  <field name="DIR">DOWN</field>
+                <block type="harvest_dir">
+                  <field name="TARGET">TREE</field>
+                  <next>
+                    <block type="move_dir">
+                      <field name="DIR">DOWN</field>
+                      <next>
+                        <block type="harvest_dir">
+                          <field name="TARGET">TREE</field>
+                        </block>
+                      </next>
+                    </block>
+                  </next>
                 </block>
               </next>
             </block>
