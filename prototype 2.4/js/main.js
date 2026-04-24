@@ -16,6 +16,16 @@ window.App = window.App || {};
     const { setStatus } = App.UI;
     const codeBox = document.getElementById("codeBox");
 
+    // -------------------- Global Background Music --------------------
+    // Play background music everywhere continuously (starts on first user interaction)
+    document.body.addEventListener("click", () => {
+      if (!window.globalMusic) {
+        window.globalMusic = new Audio("audio/background music.MP3");
+        window.globalMusic.loop = true;
+        window.globalMusic.volume = 0.5; // Global volume
+        window.globalMusic.play().catch(e => console.warn("Global audio prevented:", e));
+      }
+    }, { once: true });
     // The keys currently being held down by the player
     const keys = new Set();
     window.addEventListener("keydown", e => keys.add(e.key.toLowerCase()));
@@ -26,55 +36,77 @@ window.App = window.App || {};
      * @param {number} dt - Delta time (the fraction of a second since the last frame)
      */
     function update(dt) {
+      const player = App.Engine.getActiveCharacter();
+      let prevX = player ? player.x : 0;
+      let prevY = player ? player.y : 0;
+
       // 1. Tell the Action Queue to process all programmed movement for every character
       App.Engine.characters.forEach(char => {
         if (App.ActionQueue) App.ActionQueue.processCharacter(char, dt);
       });
 
       // 2. Allow the player to override the ACTIVE character using WASD keys
-      const player = App.Engine.getActiveCharacter();
-      if (!player) return;
+      // and process the walking audio.
+      if (player) {
+        // We only allow manual movement if their Blockly program isn't currently running
+        if (player.moveQueue.length === 0 && !player.currentMove) {
+          // Check which keys are pressed and calculate a velocity (vx, vy)
+          let vx = 0, vy = 0;
+          if (keys.has("w")) vy -= 1;
+          if (keys.has("s")) vy += 1;
+          if (keys.has("a")) vx -= 1;
+          if (keys.has("d")) vx += 1;
 
-      // We only allow manual movement if their Blockly program isn't currently running
-      if (player.moveQueue.length > 0 || player.currentMove) return;
+          // If they are trying to move...
+          if (vx !== 0 || vy !== 0) {
+            // Make sure they face the direction they're walking
+            if (vx > 0) player.facingRight = true;
+            else if (vx < 0) player.facingRight = false;
 
-      // Check which keys are pressed and calculate a velocity (vx, vy)
-      let vx = 0, vy = 0;
-      if (keys.has("w")) vy -= 1;
-      if (keys.has("s")) vy += 1;
-      if (keys.has("a")) vx -= 1;
-      if (keys.has("d")) vx += 1;
+            const run = keys.has("shift") ? 1.75 : 1.0;
 
-      // If they are trying to move...
-      if (vx !== 0 || vy !== 0) {
-        // Make sure they face the direction they're walking
-        if (vx > 0) player.facingRight = true;
-        else if (vx < 0) player.facingRight = false;
+            // Normalize velocity so diagonal movement isn't twice as fast
+            const len = Math.hypot(vx, vy);
+            vx /= len; vy /= len;
 
-        const run = keys.has("shift") ? 1.75 : 1.0;
+            const nextX = player.x + vx * player.speed * run * dt;
+            const nextY = player.y + vy * player.speed * run * dt;
 
-        // Normalize velocity so diagonal movement isn't twice as fast
-        const len = Math.hypot(vx, vy);
-        vx /= len; vy /= len;
+            // Check collision: if the future spot is free, move there
+            if (App.World && App.World.isWalkable(nextX, nextY)) {
+              player.x = nextX;
+              player.y = nextY;
+            } else if (App.World) {
+              // Simple Wall-Slide logic: if they hit a wall diagonally, try moving only X or only Y
+              if (App.World.isWalkable(nextX, player.y)) {
+                player.x = nextX;
+              } else if (App.World.isWalkable(player.x, nextY)) {
+                player.y = nextY;
+              }
+            }
 
-        const nextX = player.x + vx * player.speed * run * dt;
-        const nextY = player.y + vy * player.speed * run * dt;
-
-        // Check collision: if the future spot is free, move there
-        if (App.World && App.World.isWalkable(nextX, nextY)) {
-          player.x = nextX;
-          player.y = nextY;
-        } else if (App.World) {
-          // Simple Wall-Slide logic: if they hit a wall diagonally, try moving only X or only Y
-          if (App.World.isWalkable(nextX, player.y)) {
-            player.x = nextX;
-          } else if (App.World.isWalkable(player.x, nextY)) {
-            player.y = nextY;
+            // Ensure they don't walk off the map
+            App.Engine.clampPlayer(player);
           }
         }
 
-        // Ensure they don't walk off the map
-        App.Engine.clampPlayer(player);
+        // Handle Walking Audio
+        const isMoving = (player.x !== prevX || player.y !== prevY);
+        if (!window.walkAudio) {
+           window.walkAudio = new Audio("audio/walking.MP3");
+           window.walkAudio.loop = true;
+           window.walkAudio.volume = 0.6;
+        }
+
+        if (isMoving) {
+            if (window.walkAudio.paused) {
+                window.walkAudio.play().catch(e => console.warn("Walk audio prevented", e));
+            }
+        } else {
+            if (!window.walkAudio.paused) {
+                window.walkAudio.pause();
+            }
+        }
       }
     }
 

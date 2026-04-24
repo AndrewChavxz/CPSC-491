@@ -21,6 +21,14 @@ window.App = window.App || {};
                 // Fade out the start screen
                 startScreen.style.opacity = 0;
 
+                // Start looping background audio
+                if (!window.bgAudio) {
+                    window.bgAudio = new Audio("audio/falling leaves.MP3");
+                    window.bgAudio.loop = true;
+                    window.bgAudio.volume = 0.4; // Soft background volume
+                }
+                window.bgAudio.play().catch(e => console.warn("Audio prevented:", e));
+
                 // Wait 0.2 seconds, then remove it completely and show the game
                 setTimeout(() => {
                     startScreen.style.display = "none";
@@ -34,7 +42,24 @@ window.App = window.App || {};
                 }, 200);
             });
 
+            const exitBtn = document.getElementById("exit-btn");
+            if (exitBtn) {
+                exitBtn.addEventListener("click", () => {
+                    appDiv.style.display = "none";
+                    startScreen.style.display = "";
+                    startScreen.style.opacity = 1;
 
+                    // Pause background audio when returning to menu
+                    if (window.bgAudio) {
+                        window.bgAudio.pause();
+                    }
+
+                    // Stop any running scripts
+                    if (App.Input && App.Input.stopScript) {
+                        App.Input.stopScript();
+                    }
+                });
+            }
         }
 
         // -------------------- Quest Data --------------------

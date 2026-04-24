@@ -101,56 +101,59 @@ window.App = window.App || {};
                 const action = char.moveQueue[0]; // Look at the next action
 
                 if (action.type === 'harvest') {
-                    // Check all 4 adjacent tiles around the character
                     const offsets = [
-                        { dx: 0, dy: -1 }, // UP
-                        { dx: 0, dy: 1 },  // DOWN
-                        { dx: -1, dy: 0 }, // LEFT
-                        { dx: 1, dy: 0 }   // RIGHT
+                        { dx: 0, dy: -1 }, { dx: 0, dy: 1 },
+                        { dx: -1, dy: 0 }, { dx: 1, dy: 0 }
                     ];
 
-                    let totalHarvested = 0;
-                    let harvestTypes = [];
+                    let hasHarvestable = false;
+                    let bestSoundType = null;
 
                     offsets.forEach(offset => {
                         const targetX = char.x + offset.dx;
                         const targetY = char.y + offset.dy;
-
                         const key = `${Math.round(targetX)},${Math.round(targetY)}`;
-                        if (action.target === 'TREE' && (!App.World.worldObjects.has(key) || !App.World.worldObjects.get(key).startsWith('tree'))) return;
-                        if (action.target === 'ROCK' && (!App.World.worldObjects.has(key) || !App.World.worldObjects.get(key).startsWith('rock'))) return;
-
-                        // Try harvesting the tile in the world
-                        const harvested = App.World.harvestObject(targetX, targetY);
-                        if (harvested) {
-                            totalHarvested++;
-
-                            // Figure out if it was a tree, rock, or building
-                            let hType = harvested;
-                            if (harvested.startsWith('tree')) hType = 'tree';
-                            else if (harvested.startsWith('rock')) hType = 'rock';
-                            else if (harvested.startsWith('building_')) hType = harvested.replace('building_', '');
-
-                            if (!harvestTypes.includes(hType)) harvestTypes.push(hType);
-
-                            // Notify the Quest Manager that we chopped something
-                            if (App.QuestManager) {
-                                App.QuestManager.onHarvest(hType, harvested);
+                        if (App.World.worldObjects.has(key)) {
+                            const type = App.World.worldObjects.get(key);
+                            if ((action.target === 'TREE' || action.target === 'ANY') && type.startsWith('tree')) {
+                                hasHarvestable = true;
+                                bestSoundType = 'tree';
+                            }
+                            if ((action.target === 'ROCK' || action.target === 'ANY') && type.startsWith('rock')) {
+                                hasHarvestable = true;
+                                bestSoundType = 'rock';
                             }
                         }
                     });
 
-                    // Update the UI
-                    if (totalHarvested > 0) {
-                        App.UI.updateCounters(App.Engine.gameState.treeCount, App.Engine.gameState.rockCount, App.Engine.gameState.goldCount);
-                        App.UI.setStatus(`Harvested ${totalHarvested} items (${harvestTypes.join(", ")})!`);
-                    } else {
+                    if (!hasHarvestable) {
                         App.UI.setStatus("Nothing to harvest nearby.");
+                        if (action.resolve) action.resolve();
+                        char.moveQueue.shift();
+                        return;
                     }
 
-                    // Consume the harvest action so we can move to the next command
-                    if (action.resolve) action.resolve();
                     char.moveQueue.shift();
+                    char.currentMove = {
+                        type: 'harvest',
+                        t: 0,
+                        duration: 3.0,
+                        actionConfig: action,
+                        startX: char.x, startY: char.y,
+                        targetX: char.x, targetY: char.y,
+                        resolve: action.resolve
+                    };
+
+                    App.UI.setStatus("Harvesting... (3s)");
+
+                    if (bestSoundType === 'tree') {
+                        const audio = new Audio("audio/Wood cutting.MP3");
+                        audio.play().catch(evt => console.warn("Audio play failed", evt));
+                    } else if (bestSoundType === 'rock') {
+                        const audio = new Audio("audio/stone mining.MP3");
+                        audio.play().catch(evt => console.warn("Audio play failed", evt));
+                    }
+
                     return;
                 }
 
@@ -185,21 +188,70 @@ window.App = window.App || {};
 
             // Animating the current move
             if (char.currentMove) {
-                char.currentMove.t += dt / stepTime;
-                const t = Math.min(1, char.currentMove.t);
+                if (char.currentMove.type === 'harvest') {
+                    char.currentMove.t += dt; // Flat seconds
 
-                // Easing formula to make the movement look smooth
-                const s = t * t * (3 - 2 * t);
+                    if (char.currentMove.t >= char.currentMove.duration) {
+                        const actionConfig = char.currentMove.actionConfig;
+                        const offsets = [
+                            { dx: 0, dy: -1 }, { dx: 0, dy: 1 },
+                            { dx: -1, dy: 0 }, { dx: 1, dy: 0 }
+                        ];
 
-                char.x = char.currentMove.startX + (char.currentMove.targetX - char.currentMove.startX) * s;
-                char.y = char.currentMove.startY + (char.currentMove.targetY - char.currentMove.startY) * s;
+                        let totalHarvested = 0;
+                        let harvestTypes = [];
 
-                // If the timer reaches 1 (100%), the move is finished
-                if (t >= 1) {
-                    char.x = char.currentMove.targetX;
-                    char.y = char.currentMove.targetY;
-                    if (char.currentMove.resolve) char.currentMove.resolve(); // Resolve the promise!
-                    char.currentMove = null; // Clear it so the next command can start
+                        offsets.forEach(offset => {
+                            const targetX = char.x + offset.dx;
+                            const targetY = char.y + offset.dy;
+                            const key = `${Math.round(targetX)},${Math.round(targetY)}`;
+                            
+                            if (actionConfig.target === 'TREE' && (!App.World.worldObjects.has(key) || !App.World.worldObjects.get(key).startsWith('tree'))) return;
+                            if (actionConfig.target === 'ROCK' && (!App.World.worldObjects.has(key) || !App.World.worldObjects.get(key).startsWith('rock'))) return;
+
+                            const harvested = App.World.harvestObject(targetX, targetY);
+                            if (harvested) {
+                                totalHarvested++;
+                                let hType = harvested;
+                                if (harvested.startsWith('tree')) hType = 'tree';
+                                else if (harvested.startsWith('rock')) hType = 'rock';
+                                else if (harvested.startsWith('building_')) hType = harvested.replace('building_', '');
+
+                                if (!harvestTypes.includes(hType)) harvestTypes.push(hType);
+
+                                if (App.QuestManager) {
+                                    App.QuestManager.onHarvest(hType, harvested);
+                                }
+                            }
+                        });
+
+                        if (totalHarvested > 0) {
+                            App.UI.updateCounters(App.Engine.gameState.treeCount, App.Engine.gameState.rockCount, App.Engine.gameState.goldCount);
+                            App.UI.setStatus(`Harvested ${totalHarvested} items (${harvestTypes.join(", ")})!`);
+                        } else {
+                            App.UI.setStatus("Nothing to harvest.");
+                        }
+
+                        if (char.currentMove.resolve) char.currentMove.resolve();
+                        char.currentMove = null;
+                    }
+                } else {
+                    char.currentMove.t += dt / stepTime;
+                    const t = Math.min(1, char.currentMove.t);
+
+                    // Easing formula to make the movement look smooth
+                    const s = t * t * (3 - 2 * t);
+
+                    char.x = char.currentMove.startX + (char.currentMove.targetX - char.currentMove.startX) * s;
+                    char.y = char.currentMove.startY + (char.currentMove.targetY - char.currentMove.startY) * s;
+
+                    // If the timer reaches 1 (100%), the move is finished
+                    if (t >= 1) {
+                        char.x = char.currentMove.targetX;
+                        char.y = char.currentMove.targetY;
+                        if (char.currentMove.resolve) char.currentMove.resolve(); // Resolve the promise!
+                        char.currentMove = null; // Clear it so the next command can start
+                    }
                 }
             }
         }

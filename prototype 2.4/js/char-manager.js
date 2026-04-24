@@ -208,26 +208,12 @@ window.App = window.App || {};
             setTimeout(refreshCharList, 10);
         }
 
-        // Initial UI Setup
-        const panel = document.createElement("div");
-        panel.className = "panel";
-        panel.style.marginTop = "10px";
-        panel.innerHTML = `
-        <div class="hint">Characters</div>
-        <div id="charList" style="display:flex; flex-wrap:wrap;"></div>
-        <button id="newCharBtn">New Character</button>
-      `;
-
-        // Insert before controls
-        const controls = document.getElementById("controls");
-        // Check if panel is already there to prevent duplicates during hot reloads
-        if (!document.getElementById("charList")) {
-            controls.parentNode.insertBefore(panel, controls);
-            document.getElementById("newCharBtn").addEventListener("click", createNewCharacter);
+        // Initial UI Setup removed to only allow one character
+        if (workspace && typeof Blockly !== 'undefined' && Blockly.svgResize) {
+            setTimeout(() => {
+                Blockly.svgResize(workspace);
+            }, 50);
         }
-
-        // Refresh initially
-        refreshCharList();
     }
 
     App.CharManager = {
