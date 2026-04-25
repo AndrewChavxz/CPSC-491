@@ -6,6 +6,8 @@ window.App = window.App || {};
     const { workspace } = App.BlocklyStuff;
     const { setStatus } = App.UI;
 
+    // -------------------- UI Updates --------------------
+    // Refreshes the top-left character selection list
     function refreshCharList() {
         const list = document.getElementById("charList");
         console.log("Refreshing char list. Characters:", App.Engine.characters.length, App.Engine.characters);
@@ -75,6 +77,9 @@ window.App = window.App || {};
 
     let isSwitching = false;
 
+    // -------------------- Workspace Loading & Switching --------------------
+
+    // Helper to safely parse XML strings into DOM elements
     function textToDom(text) {
         if (typeof Blockly.Xml.textToDom === 'function') {
             return Blockly.Xml.textToDom(text);
@@ -90,6 +95,7 @@ window.App = window.App || {};
         return dom.documentElement;
     }
 
+    // Core function that swaps the currently active character and loads their blocks
     function switchToCharacter(id, saveCurrent = true) {
         console.log(`[Switch] Request to switch to ${id}. saveCurrent=${saveCurrent}`);
         try {
@@ -149,6 +155,8 @@ window.App = window.App || {};
         }
     }
 
+    // -------------------- Character Creation --------------------
+    // Generates a new character if the user has none or wants a new one
     function createNewCharacter() {
         // Find first available ID
         let idIndex = 1;
@@ -170,6 +178,8 @@ window.App = window.App || {};
     }
 
     // Auto-save on block changes
+    // -------------------- Auto-Save Integration --------------------
+    // Triggers every time the user drags or connects a block
     function onBlocklyChange(event) {
         if (isSwitching) return; // Prevent saving during switch (e.g. clearing workspace)
         if (event.type === Blockly.Events.UI) return; // Ignore UI events like scrolling
@@ -187,12 +197,15 @@ window.App = window.App || {};
     workspace.addChangeListener(onBlocklyChange);
 
     // Initial load handling logic packaged into an init function
+    // -------------------- Initialization --------------------
+    // Called once when the game loads to restore the last active character
     function init() {
         try {
             const initialChar = App.Engine.getActiveCharacter();
             if (initialChar && initialChar.workspaceXML) {
                 try {
-                    const xml = Blockly.Xml.textToDom(initialChar.workspaceXML);
+                    workspace.clear(); // Prevent duplicate blocks on refresh
+                    const xml = textToDom(initialChar.workspaceXML);
                     Blockly.Xml.domToWorkspace(xml, workspace);
                     setStatus(`Loaded ${initialChar.id}`);
                 } catch (blocklyErr) {

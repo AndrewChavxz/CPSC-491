@@ -60,8 +60,10 @@ window.App = window.App || {};
           // If they are trying to move...
           if (vx !== 0 || vy !== 0) {
             // Make sure they face the direction they're walking
-            if (vx > 0) player.facingRight = true;
-            else if (vx < 0) player.facingRight = false;
+            if (vx > 0) { player.facingRight = true; player.facingDirection = 1; }
+            else if (vx < 0) { player.facingRight = false; player.facingDirection = 3; }
+            else if (vy < 0) { player.facingDirection = 0; }
+            else if (vy > 0) { player.facingDirection = 2; }
 
             const run = keys.has("shift") ? 1.75 : 1.0;
 
@@ -181,11 +183,17 @@ window.App = window.App || {};
 
         if (codeBox) codeBox.textContent = code || "// (no code)";
 
-        // Quest 2 has specific rules that need to be checked *before* the code runs to avoid cheating
-        if (App.QuestManager && App.QuestManager.activeQuest && App.QuestManager.activeQuest.id === 2) {
-          if (!App.QuestManager.checkQuest2RulesBeforeRun()) {
+        // Check quest rules *before* the code runs to avoid cheating
+        if (App.QuestManager && App.QuestManager.activeQuest) {
+          if (!App.QuestManager.checkRulesBeforeRun()) {
             return;
           }
+        }
+
+        const char = App.Engine.getActiveCharacter();
+        if (char) {
+          char.homeX = Math.round(char.x);
+          char.homeY = Math.round(char.y);
         }
 
         // This is the Magic function! 
@@ -194,7 +202,6 @@ window.App = window.App || {};
         const runner = new AsyncFunction("GameAPI", `${code}\nif (typeof onStart === "function") await onStart();`);
         runner(App.GameAPI).catch(err => console.warn("Script stopped or async error:", err));
 
-        const char = App.Engine.getActiveCharacter();
         if (char && char.moveQueue.length === 0) {
           setStatus("No moves queued. Add movement blocks.");
           return;

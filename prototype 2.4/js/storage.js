@@ -10,6 +10,7 @@ window.App = window.App || {};
 (function () {
     const STORAGE_KEY = "isogrid_save_v1";
 
+    // -------------------- Saving --------------------
     /**
      * Saves all current game data to localStorage.
      */
@@ -48,6 +49,7 @@ window.App = window.App || {};
         }
     }
 
+    // -------------------- Loading --------------------
     /**
      * Tries to load existing game data from localStorage.
      * @returns {boolean} True if a save file was found and loaded successfully, otherwise false.

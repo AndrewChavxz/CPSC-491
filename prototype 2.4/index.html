@@ -208,6 +208,10 @@
       <block type="on_start"></block>
     </category>
     <category name="Movement" colour="#32a852">
+      <block type="move_forward"></block>
+      <block type="move_backward"></block>
+      <block type="turn_left"></block>
+      <block type="turn_right"></block>
       <block type="move_dir">
         <field name="DIR">UP</field>
       </block>
@@ -221,6 +225,7 @@
         <field name="DIR">RIGHT</field>
       </block>
       <block type="harvest_dir"></block>
+      <block type="drop_resources"></block>
     </category>
     <category name="Logic" colour="#5b80a5">
       <block type="controls_if"></block>
@@ -228,6 +233,7 @@
       <block type="logic_operation"></block>
       <block type="logic_negate"></block>
       <block type="logic_boolean"></block>
+      <block type="stop_code"></block>
     </category>
     <category name="Loops" colour="#e0a800">
       <block type="controls_repeat_ext">
@@ -255,9 +261,12 @@
       </block>
     </category>
     <category name="Variables" colour="#a55b80" custom="VARIABLE"></category>
-    <category name="Sensors" colour="#ff8c00">
+    <category name="Sensors" colour="#5ba55b">
       <block type="get_resource_count"></block>
       <block type="is_next_to"></block>
+      <block type="distance_to"></block>
+      <block type="is_blocked_ahead"></block>
+      <block type="is_on_base"></block>
     </category>
   </xml>
 

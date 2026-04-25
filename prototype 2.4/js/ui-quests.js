@@ -68,103 +68,60 @@ window.App = window.App || {};
         const questsData = [
             {
                 id: 1,
-                title: "🟢 QUEST 1 — “Loop Master”",
-                objective: "Cut 6 trees.",
+                title: "QUEST 1 - The Maze Solver",
+                objective: "Navigate through a dense forest path without hitting any trees.",
                 rules: [
-                    "You may ONLY use:",
-                    "1 REPEAT loop",
-                    "1 CUT block inside the loop",
-                    "No duplicate CUT blocks allowed.",
-                    "Total blocks allowed: 3 or fewer."
+                    "Must use: Turn blocks",
+                    "Hitting a tree fails the quest"
                 ],
-                reward: "+40 Gold",
-                teaches: ["Replacing repetition with loops."]
+                reward: "+50 Gold",
+                teaches: ["Using loops and conditionals to navigate a path."]
             },
             {
                 id: 2,
-                title: "🟢 QUEST 2 — “Conditional Thinker”",
-                objective: "Cut only oak trees.",
+                title: "QUEST 2 - The Zamboni",
+                objective: "Clear an area of all trees.",
                 rules: [
-                    "Must use at least 1 IF statement.",
-                    "Cannot cut without a condition.",
-                    "Direct CUT without IF = quest fails."
+                    "Must use: Nested REPEAT loops",
+                    "Must cut at least 10 trees"
                 ],
-                reward: "+50 Gold",
-                teaches: ["Decision-making logic."]
+                reward: "+100 Gold",
+                teaches: ["Using nested loops to walk back and forth in a grid pattern."]
             },
             {
                 id: 3,
-                title: "🟡 QUEST 3 — “Minimal Code Challenge”",
-                objective: "Cut 3 trees.",
+                title: "QUEST 3 - The Seeker",
+                objective: "Find and cut the 3 closest trees using radar.",
                 rules: [
-                    "Must use fewer than 4 total blocks.",
-                    "No wasted moves.",
-                    "Efficiency matters."
+                    "Must use: Distance sensor blocks",
+                    "Must cut exactly 3 trees"
                 ],
-                reward: "+60 Gold",
-                teaches: ["Code optimization and simplicity."]
+                reward: "+150 Gold",
+                teaches: ["Using radar sensors for smarter AI behaviors."]
             },
             {
                 id: 4,
-                title: "🟡 QUEST 4 — “No Repetition Allowed”",
-                objective: "Move forward 5 spaces and cut 1 tree.",
+                title: "QUEST 4 - The Courier",
+                objective: "Harvest 5 trees, then return to your Base (the Cabin) and drop the wood.",
                 rules: [
-                    "You cannot place MOVE more than once.",
-                    "Must use a loop.",
-                    "Multiple MOVE blocks = quest fails."
+                    "Must use: Drop Resources block",
+                    "Must be standing on Base when dropping resources",
+                    "Must have cut at least 5 trees"
                 ],
-                reward: "+60 Gold",
-                teaches: ["Understanding abstraction and repetition control."]
+                reward: "+200 Gold",
+                teaches: ["Locations and dropping off inventory."]
             },
             {
                 id: 5,
-                title: "🟠 QUEST 5 — “Smart Loop”",
-                objective: "Move until you reach a tree, then cut it.",
+                title: "QUEST 5 - Nature Preserve",
+                objective: "Move far away from the start without cutting any trees or stepping on water.",
                 rules: [
-                    "Must use BOTH: REPEAT, IF",
-                    "Hardcoding exact moves fails the quest.",
-                    "Must rely on condition logic."
+                    "Must travel at least 15 tiles away from the start",
+                    "Cutting any trees fails the quest",
+                    "Stepping on water fails the quest"
                 ],
-                reward: "+75 Gold",
-                teaches: ["Loop + conditional interaction (basic AI behavior)."]
-            },
-            {
-                id: 6,
-                title: "🟠 QUEST 6 — “Energy Efficient Programmer”",
-                objective: "Cut 4 trees.",
-                rules: [
-                    "Must use fewer than 8 commands.",
-                    "Must use at least one loop.",
-                    "No duplicate CUT blocks.",
-                    "Energy is limited."
-                ],
-                reward: "+80 Gold",
-                teaches: ["Efficient algorithm design."]
-            },
-            {
-                id: 7,
-                title: "🔵 QUEST 7 — “Boolean Builder”",
-                objective: "Cut oak trees only when energy > 1.",
-                rules: [
-                    "Must use: IF, A comparison ( > ), AND condition.",
-                    "Example logic: if tree == oak AND energy > 1",
-                    "Missing condition logic fails quest."
-                ],
-                reward: "+100 Gold",
-                teaches: ["Boolean operators and logical expressions."]
-            },
-            {
-                id: 8,
-                title: "🔴 QUEST 8 — “Professional Programmer”",
-                objective: "Cut 5 trees.",
-                rules: [
-                    "Must use: IF, REPEAT",
-                    "Must use fewer than 6 total blocks.",
-                    "Cannot use more than 1 CUT block.",
-                    "Redundant blocks fail quest."
-                ],
-                reward: "+120 Gold",
-                teaches: ["Combining control flow structures efficiently."]
+                reward: "+500 Gold",
+                teaches: ["Hazard avoidance and anti-goals."]
             }
         ];
 

@@ -63,6 +63,56 @@ window.App = window.App || {};
     return (map[dir] || "") + ";\n";
   };
 
+  Blockly.Blocks["move_forward"] = {
+    init: function () {
+      this.appendDummyInput().appendField("move forward");
+      this.setPreviousStatement(true);
+      this.setNextStatement(true);
+      this.setColour(125);
+    },
+  };
+  generator.forBlock["move_forward"] = function () { return "await GameAPI.moveForward();\n"; };
+
+  Blockly.Blocks["move_backward"] = {
+    init: function () {
+      this.appendDummyInput().appendField("move backward");
+      this.setPreviousStatement(true);
+      this.setNextStatement(true);
+      this.setColour(125);
+    },
+  };
+  generator.forBlock["move_backward"] = function () { return "await GameAPI.moveBackward();\n"; };
+
+  Blockly.Blocks["turn_left"] = {
+    init: function () {
+      this.appendDummyInput().appendField("turn left");
+      this.setPreviousStatement(true);
+      this.setNextStatement(true);
+      this.setColour(125);
+    },
+  };
+  generator.forBlock["turn_left"] = function () { return "await GameAPI.turnLeft();\n"; };
+
+  Blockly.Blocks["turn_right"] = {
+    init: function () {
+      this.appendDummyInput().appendField("turn right");
+      this.setPreviousStatement(true);
+      this.setNextStatement(true);
+      this.setColour(125);
+    },
+  };
+  generator.forBlock["turn_right"] = function () { return "await GameAPI.turnRight();\n"; };
+
+  Blockly.Blocks["drop_resources"] = {
+    init: function () {
+      this.appendDummyInput().appendField("drop resources");
+      this.setPreviousStatement(true);
+      this.setNextStatement(true);
+      this.setColour(160);
+    },
+  };
+  generator.forBlock["drop_resources"] = function () { return "await GameAPI.dropResources();\n"; };
+
   Blockly.Blocks["harvest_dir"] = {
     init: function () {
       this.appendDummyInput()
@@ -123,6 +173,62 @@ window.App = window.App || {};
     return [`GameAPI.isNextTo("${target}")`, generator.ORDER_NONE];
   };
 
+  Blockly.Blocks["distance_to"] = {
+    init: function () {
+      this.appendDummyInput()
+        .appendField("distance to nearest")
+        .appendField(new Blockly.FieldDropdown([
+          ["tree", "TREE"],
+          ["rock", "ROCK"],
+          ["water", "WATER"],
+          ["anything", "ANY"]
+        ]), "TARGET");
+      this.setOutput(true, "Number");
+      this.setColour(45);
+    }
+  };
+  generator.forBlock["distance_to"] = function (block) {
+    const target = block.getFieldValue("TARGET");
+    return [`GameAPI.getDistanceTo("${target}")`, generator.ORDER_NONE];
+  };
+
+  Blockly.Blocks["is_blocked_ahead"] = {
+    init: function () {
+      this.appendDummyInput().appendField("is path blocked ahead?");
+      this.setOutput(true, "Boolean");
+      this.setColour(45);
+    }
+  };
+  generator.forBlock["is_blocked_ahead"] = function () {
+    return [`GameAPI.isPathBlockedAhead()`, generator.ORDER_NONE];
+  };
+
+  Blockly.Blocks["is_on_base"] = {
+    init: function () {
+      this.appendDummyInput().appendField("is standing on base?");
+      this.setOutput(true, "Boolean");
+      this.setColour(45);
+    }
+  };
+  generator.forBlock["is_on_base"] = function () {
+    return [`GameAPI.isOnBase()`, generator.ORDER_NONE];
+  };
+
+  // Stop Code block
+  Blockly.Blocks["stop_code"] = {
+    init: function () {
+      this.appendDummyInput().appendField("stop code");
+      this.setPreviousStatement(true);
+      // No next statement, since this halts execution
+      this.setColour(0);
+    },
+  };
+
+  generator.forBlock["stop_code"] = function (block) {
+    // We call resetQueue to stop any pending actions, and throw to halt the async function
+    return "if (App.GameAPI) App.GameAPI.resetQueue();\nthrow new Error('STOP_CODE');\n";
+  };
+
   // 3. Inject Workspace
   const workspace = Blockly.inject("blocklyDiv", {
     toolbox: document.getElementById("toolbox"),
@@ -136,4 +242,19 @@ window.App = window.App || {};
 
   // Expose to App
   App.BlocklyStuff = { workspace, setStatus, generator };
+
+  // Manual fallback for block deletion if Blockly's default shortcuts fail
+  document.addEventListener("keydown", function(e) {
+    if (e.key === "Delete" || e.key === "Backspace") {
+      // Don't delete if user is typing in a text input (like naming a variable)
+      const tag = document.activeElement ? document.activeElement.tagName : "";
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+      const selected = Blockly.common ? Blockly.common.getSelected() : Blockly.selected;
+      if (selected && selected.isDeletable()) {
+        selected.dispose(true, true);
+        e.preventDefault(); // Prevent browser back navigation
+      }
+    }
+  });
 })();

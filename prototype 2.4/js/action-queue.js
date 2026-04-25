@@ -11,6 +11,7 @@ window.App = window.App || {};
 (function () {
     const stepTime = 0.22; // How long (in seconds) one single grid movement takes
 
+    // -------------------- Promise Wrappers --------------------
     /**
      * Helper function to add a move command to the active character's queue.
      * Returns a Promise that resolves when the move is fully completed.
@@ -41,14 +42,89 @@ window.App = window.App || {};
         });
     }
 
+    function enqueueTurn(direction) {
+        return new Promise(resolve => {
+            const char = App.Engine.getActiveCharacter();
+            if (char) char.moveQueue.push({ type: 'turn', direction, resolve });
+            else resolve();
+        });
+    }
+
+    function enqueueRelativeMove(forward) {
+        return new Promise(resolve => {
+            const char = App.Engine.getActiveCharacter();
+            if (char) char.moveQueue.push({ type: 'relative_move', forward, resolve });
+            else resolve();
+        });
+    }
+
+    function enqueueDropResources() {
+        return new Promise(resolve => {
+            const char = App.Engine.getActiveCharacter();
+            if (char) char.moveQueue.push({ type: 'drop_resources', resolve });
+            else resolve();
+        });
+    }
+
+    // -------------------- Game API (Blockly Bridge) --------------------
     // The GameAPI object is what the auto-generated javascript code from Blockly calls
     const GameAPI = {
         moveUp: () => enqueueMove(0, -1),
         moveDown: () => enqueueMove(0, 1),
         moveLeft: () => enqueueMove(-1, 0),
         moveRight: () => enqueueMove(1, 0),
+        turnLeft: () => enqueueTurn('LEFT'),
+        turnRight: () => enqueueTurn('RIGHT'),
+        moveForward: () => enqueueRelativeMove(true),
+        moveBackward: () => enqueueRelativeMove(false),
         harvest: (target) => enqueueHarvest(target),
         getResource: (type) => App.Engine.gameState[type] || 0,
+        dropResources: () => enqueueDropResources(),
+        isOnBase: () => {
+            const char = App.Engine.getActiveCharacter();
+            if (!char) return false;
+            const key = `${Math.round(char.x)},${Math.round(char.y)}`;
+            return App.World.worldObjects.has(key) && App.World.worldObjects.get(key) === 'building_Cabin';
+        },
+        getDistanceTo: (target) => {
+            const char = App.Engine.getActiveCharacter();
+            if (!char) return 999;
+            let minDist = 999;
+            for (let i = 0; i < App.Engine.gridCols; i++) {
+                for (let j = 0; j < App.Engine.gridRows; j++) {
+                    const key = `${i},${j}`;
+                    if (App.World.worldObjects.has(key)) {
+                        const type = App.World.worldObjects.get(key);
+                        let match = false;
+                        if (target === 'ANY') match = true;
+                        if (target === 'TREE' && type.startsWith('tree')) match = true;
+                        if (target === 'ROCK' && type.startsWith('rock')) match = true;
+                        if (target === 'WATER' && type === 'water') match = true;
+
+                        if (match) {
+                            const d = Math.abs(Math.round(char.x) - i) + Math.abs(Math.round(char.y) - j);
+                            if (d < minDist) minDist = d;
+                        }
+                    }
+                }
+            }
+            return minDist;
+        },
+        isPathBlockedAhead: () => {
+            const char = App.Engine.getActiveCharacter();
+            if (!char) return true;
+            let dx = 0, dy = 0;
+            if (char.facingDirection === 0) dy = -1;
+            if (char.facingDirection === 1) dx = 1;
+            if (char.facingDirection === 2) dy = 1;
+            if (char.facingDirection === 3) dx = -1;
+
+            const tx = Math.round(char.x) + dx;
+            const ty = Math.round(char.y) + dy;
+            
+            if (tx < 0 || tx >= App.Engine.gridCols || ty < 0 || ty >= App.Engine.gridRows) return true;
+            return !App.World.isWalkable(tx, ty);
+        },
         isNextTo: (target) => {
             const char = App.Engine.getActiveCharacter();
             if (!char) return false;
@@ -84,6 +160,7 @@ window.App = window.App || {};
     App.GameAPI = GameAPI;
 
 
+    // -------------------- Action Processing Loop --------------------
     /**
      * Processes the queue for a single character every frame.
      * If they have a move pending, it calculates how far they should have moved
@@ -137,20 +214,20 @@ window.App = window.App || {};
                     char.currentMove = {
                         type: 'harvest',
                         t: 0,
-                        duration: 3.0,
+                        duration: 1.0,
                         actionConfig: action,
                         startX: char.x, startY: char.y,
                         targetX: char.x, targetY: char.y,
                         resolve: action.resolve
                     };
 
-                    App.UI.setStatus("Harvesting... (3s)");
+                    App.UI.setStatus("Harvesting... (1s)");
 
                     if (bestSoundType === 'tree') {
-                        const audio = new Audio("audio/Wood cutting.MP3");
+                        const audio = new Audio("audio/0424.MP3");
                         audio.play().catch(evt => console.warn("Audio play failed", evt));
                     } else if (bestSoundType === 'rock') {
-                        const audio = new Audio("audio/stone mining.MP3");
+                        const audio = new Audio("audio/0424.MP3");
                         audio.play().catch(evt => console.warn("Audio play failed", evt));
                     }
 
@@ -165,8 +242,10 @@ window.App = window.App || {};
                     const ty = Math.max(0, Math.min(App.Engine.gridRows - 1, char.y + m.dy));
 
                     // Ensure the character faces the right way
-                    if (m.dx > 0) char.facingRight = true;
-                    else if (m.dx < 0) char.facingRight = false;
+                    if (m.dx > 0) { char.facingRight = true; char.facingDirection = 1; }
+                    else if (m.dx < 0) { char.facingRight = false; char.facingDirection = 3; }
+                    else if (m.dy < 0) char.facingDirection = 0;
+                    else if (m.dy > 0) char.facingDirection = 2;
 
                     // If the tile is blocked (e.g. by a rock), cancel the move entirely
                     if (!App.World.isWalkable(tx, ty)) {
@@ -182,6 +261,55 @@ window.App = window.App || {};
                         startX: char.x, startY: char.y,  // From here...
                         targetX: tx, targetY: ty,        // ...to there
                         resolve: m.resolve               // Keep the promise resolver to call when animation is done
+                    };
+                }
+
+                if (action.type === 'turn') {
+                    if (action.direction === 'LEFT') char.facingDirection = (char.facingDirection + 3) % 4;
+                    if (action.direction === 'RIGHT') char.facingDirection = (char.facingDirection + 1) % 4;
+                    
+                    if (char.facingDirection === 1) char.facingRight = true;
+                    if (char.facingDirection === 3) char.facingRight = false;
+
+                    if (action.resolve) action.resolve();
+                    char.moveQueue.shift();
+                    return;
+                }
+
+                if (action.type === 'drop_resources') {
+                    if (App.QuestManager) App.QuestManager.onDropResources();
+                    if (action.resolve) action.resolve();
+                    char.moveQueue.shift();
+                    return;
+                }
+
+                if (action.type === 'relative_move') {
+                    let dx = 0, dy = 0;
+                    if (char.facingDirection === 0) dy = -1;
+                    if (char.facingDirection === 1) dx = 1;
+                    if (char.facingDirection === 2) dy = 1;
+                    if (char.facingDirection === 3) dx = -1;
+
+                    if (!action.forward) { dx = -dx; dy = -dy; }
+
+                    const tx = Math.max(0, Math.min(App.Engine.gridCols - 1, char.x + dx));
+                    const ty = Math.max(0, Math.min(App.Engine.gridRows - 1, char.y + dy));
+
+                    if (dx > 0) char.facingRight = true;
+                    else if (dx < 0) char.facingRight = false;
+
+                    if (!App.World.isWalkable(tx, ty)) {
+                        if (action.resolve) action.resolve();
+                        char.moveQueue.shift();
+                        return;
+                    }
+
+                    char.moveQueue.shift();
+                    char.currentMove = {
+                        t: 0,
+                        startX: char.x, startY: char.y,
+                        targetX: tx, targetY: ty,
+                        resolve: action.resolve
                     };
                 }
             }
@@ -249,6 +377,12 @@ window.App = window.App || {};
                     if (t >= 1) {
                         char.x = char.currentMove.targetX;
                         char.y = char.currentMove.targetY;
+
+                        // Check if stepped in water
+                        if (App.World.worldObjects.get(`${Math.round(char.x)},${Math.round(char.y)}`) === 'water') {
+                             if (App.QuestManager) App.QuestManager.onStepInWater();
+                        }
+
                         if (char.currentMove.resolve) char.currentMove.resolve(); // Resolve the promise!
                         char.currentMove = null; // Clear it so the next command can start
                     }

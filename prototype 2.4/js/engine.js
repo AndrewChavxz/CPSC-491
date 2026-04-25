@@ -45,6 +45,7 @@ window.App = window.App || {};
       color,
       speed: 4.8,            // How fast the character moves manually
       facingRight: false,    // Tells the drawing function whether to flip the robot sprite
+      facingDirection: 1,    // 0=North(up), 1=East(right), 2=South(down), 3=West(left)
       workspaceXML: null,    // Stores the Blockly code specific to this character
       moveQueue: [],         // The list of programmed commands waiting to be executed
       currentMove: null      // The command currently animating
@@ -264,16 +265,18 @@ window.App = window.App || {};
         // Skip coordinates that fall off the edge of the world map
         if (i < 0 || i >= gridCols || j < 0 || j >= gridRows) continue;
 
+        const key = `${i},${j}`;
+        const objType = App.World && App.World.worldObjects.has(key) ? App.World.worldObjects.get(key) : null;
+        const isWater = objType === 'water';
+
         // 1. Draw the floor tile
-        if (App.Assets) App.Assets.drawBlockTile(ctx, i, j, tileW, tileH, blockH);
+        if (App.Assets) App.Assets.drawBlockTile(ctx, i, j, tileW, tileH, blockH, isWater);
 
         // 2. Draw world objects (trees, rocks, buildings) that sit on this tile
-        const key = `${i},${j}`;
-        if (App.World && App.World.worldObjects.has(key)) {
-          const type = App.World.worldObjects.get(key);
-          if (type.startsWith('tree') && App.Assets) App.Assets.drawTree(ctx, i, j, type, blockH);
-          else if (type.startsWith('rock') && App.Assets) App.Assets.drawRock(ctx, i, j, type, blockH);
-          else if (type.startsWith('building_') && App.Assets) App.Assets.drawBuilding(ctx, i, j, type, blockH);
+        if (objType) {
+          if (objType.startsWith('tree') && App.Assets) App.Assets.drawTree(ctx, i, j, objType, blockH);
+          else if (objType.startsWith('rock') && App.Assets) App.Assets.drawRock(ctx, i, j, objType, blockH);
+          else if (objType.startsWith('building_') && App.Assets) App.Assets.drawBuilding(ctx, i, j, objType, blockH);
         }
 
         // 3. Draw the ghostly building preview if the user is placing something

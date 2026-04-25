@@ -77,7 +77,7 @@ window.App = window.App || {};
     /**
      * Draws a single isometric grid tile, giving it a 3D block appearance.
      */
-    function drawBlockTile(ctx, i, j, tileW, tileH, blockH) {
+    function drawBlockTile(ctx, i, j, tileW, tileH, blockH, isWater = false) {
         const p = App.Engine.isoToScreen(i, j);
 
         // Points for the top face of the tile
@@ -90,12 +90,16 @@ window.App = window.App || {};
         // Points for the bottom face of the tile (lowered by blockH)
         const down = top.map(pt => ({ x: pt.x, y: pt.y + blockH }));
 
+        const tColor = isWater ? "#4da6ff" : topColor;
+        const lColor = isWater ? App.shade(tColor, -0.18) : leftColor;
+        const rColor = isWater ? App.shade(tColor, -0.28) : rightColor;
+
         // Draw the left and right sides to give it depth
-        drawPoly(ctx, [top[3], top[2], down[2], down[3]], leftColor, edgeColor);
-        drawPoly(ctx, [top[1], top[2], down[2], down[1]], rightColor, edgeColor);
+        drawPoly(ctx, [top[3], top[2], down[2], down[3]], lColor, edgeColor);
+        drawPoly(ctx, [top[1], top[2], down[2], down[1]], rColor, edgeColor);
 
         // Draw the top face
-        drawPoly(ctx, top, topColor, edgeColor);
+        drawPoly(ctx, top, tColor, edgeColor);
 
         // Add a subtle highlight edge
         ctx.strokeStyle = "rgba(0,0,0,0.08)";

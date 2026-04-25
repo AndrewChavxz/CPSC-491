@@ -57,13 +57,31 @@ window.App = window.App || {};
                 }
             }
         }
+
+        // Generate water patches
+        const numWaterPatches = 20;
+        for (let w = 0; w < numWaterPatches; w++) {
+            const cx = Math.floor(Math.random() * gridCols);
+            const cy = Math.floor(Math.random() * gridRows);
+            const waterSize = 10 + Math.random() * 20;
+            for (let k = 0; k < waterSize; k++) {
+                const ox = Math.floor((Math.random() + Math.random() - 1) * 6);
+                const oy = Math.floor((Math.random() + Math.random() - 1) * 6);
+                const px = cx + ox;
+                const py = cy + oy;
+                if (px >= 0 && px < gridCols && py >= 0 && py < gridRows) {
+                    if (Math.abs(px - 20) < 5 && Math.abs(py - 20) < 5) continue; // Safe zone
+                    worldObjects.set(`${px},${py}`, 'water'); // Overwrite whatever was there
+                }
+            }
+        }
     }
 
     /**
      * Checks if a specific grid coordinate is free to walk on.
      * @param {number} x - The x coordinate
      * @param {number} y - The y coordinate
-     * @returns {boolean} True if the tile is empty and within bounds.
+     * @returns {boolean} True if the tile is empty (or water) and within bounds.
      */
     function isWalkable(x, y) {
         // Check if the coordinates are outside the map boundaries
@@ -72,7 +90,11 @@ window.App = window.App || {};
         // Check if there is an object (tree/rock/building) occupying this tile
         const i = Math.round(x);
         const j = Math.round(y);
-        if (worldObjects.has(`${i},${j}`)) return false;
+        if (worldObjects.has(`${i},${j}`)) {
+            const obj = worldObjects.get(`${i},${j}`);
+            if (obj === 'water') return true; // You can walk into water, but it might fail quests!
+            return false;
+        }
 
         return true; // The tile is walkable!
     }
